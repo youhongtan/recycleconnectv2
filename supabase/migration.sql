@@ -114,6 +114,22 @@ CREATE TABLE IF NOT EXISTS user_roles (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Storage: ensure uploads bucket exists (run separately if bucket already created)
+INSERT INTO storage.buckets (id, name, public, avif_autodetection, file_size_limit, allowed_mime_types)
+VALUES ('uploads', 'uploads', TRUE, FALSE, 10485760, ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
+ON CONFLICT (id) DO NOTHING;
+
+-- Storage RLS for uploads bucket
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "public_upload_images" ON storage.objects;
+CREATE POLICY "public_upload_images" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'uploads');
+
+DROP POLICY IF EXISTS "public_read_images" ON storage.objects;
+CREATE POLICY "public_read_images" ON storage.objects
+  FOR SELECT USING (bucket_id = 'uploads');
+
 -- Indexes (IF NOT EXISTS)
 CREATE INDEX IF NOT EXISTS idx_eco_profiles_user_id ON eco_profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_recycle_logs_user_id ON recycle_logs(user_id);

@@ -23,32 +23,33 @@ module.exports = async function handler(req, res) {
   const { prompt, imageUrl } = body;
   if (!prompt) return send(res, 400, { error: 'Prompt is required' });
 
-  const apiKey = process.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) return send(res, 500, { error: 'Gemini API key not configured' });
+  const apiKey = process.env.VITE_GROQ_API_KEY;
+  if (!apiKey) return send(res, 500, { error: 'Groq API key not configured' });
 
   try {
-    let base64, mime;
+    const fullPrompt = prompt + '\n\nRespond in JSON only: item, material, recyclable, instructions, tip';
+
+    const messages = [{
+      role: 'user',
+      content: [{ type: 'text', text: fullPrompt }],
+    }];
 
     if (imageUrl) {
-      const imageRes = await fetch(imageUrl);
-      const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
-      base64 = imageBuffer.toString('base64');
-      mime = imageRes.headers.get('content-type') || 'image/jpeg';
+      messages[0].content.push({ type: 'image_url', image_url: { url: imageUrl } });
     }
 
-    const parts = [{ text: prompt + '\n\nRespond in JSON only: item, material, recyclable, instructions, tip' }];
-    if (base64) {
-      parts.push({ inline_data: { mime_type: mime, data: base64 } });
-    }
-
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts }] }),
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'llama-3.2-11b-vision-preview',
+        messages,
+        max_tokens: 1000,
+      }),
     });
 
     const data = await r.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const text = data?.choices?.[0]?.message?.content || '{}';
     const match = text.match(/\{[\s\S]*\}/);
     const parsed = match ? JSON.parse(match[0]) : {};
 
