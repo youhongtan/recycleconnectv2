@@ -49,10 +49,15 @@ module.exports = async function handler(req, res) {
     });
 
     const data = await r.json();
-    const text = data?.choices?.[0]?.message?.content || '{}';
-    const match = text.match(/\{[\s\S]*\}/);
-    const parsed = match ? JSON.parse(match[0]) : {};
+    if (data.error) return send(res, 500, { error: data.error.message || 'Groq API error' });
 
+    const text = data?.choices?.[0]?.message?.content || '';
+    if (!text) return send(res, 500, { error: 'Empty response from Groq' });
+
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return send(res, 500, { error: 'Could not parse JSON from response', raw: text });
+
+    const parsed = JSON.parse(match[0]);
     return send(res, 200, parsed);
   } catch (error) {
     return send(res, 500, { error: error.message });
