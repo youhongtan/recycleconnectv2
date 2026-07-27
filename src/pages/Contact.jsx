@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { supabase } from "@/api/supabaseClient";
 import SectionHeading from "@/components/common/SectionHeading";
 import Reveal from "@/components/common/Reveal";
-import { Send, CheckCircle2, Instagram, Facebook, Youtube, Mail, Phone, MapPin } from "lucide-react";
+import { Send, CheckCircle2, Instagram, Facebook, Youtube } from "lucide-react";
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
@@ -79,25 +79,6 @@ export default function Contact() {
         </Reveal>
 
         <div className="space-y-6">
-          <Reveal delay={0.1}>
-            <div className="glass orbital soft-shadow p-8">
-              <h2 className="text-2xl font-semibold">Get in touch</h2>
-              <div className="mt-5 space-y-4 text-muted-foreground">
-                <div className="flex items-center gap-3">
-                  <Mail className="w-5 h-5 text-primary shrink-0" />
-                  <a href="mailto:hello@recycleconnect.my" className="hover:text-primary">hello@recycleconnect.my</a>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Phone className="w-5 h-5 text-primary shrink-0" />
-                  <span>+60 3-1234 5678</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <MapPin className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                  <span>Kuala Lumpur, Malaysia</span>
-                </div>
-              </div>
-            </div>
-          </Reveal>
           <Reveal delay={0.1}>
             <div id="faq" className="glass orbital soft-shadow p-8 scroll-mt-32">
               <h2 className="text-2xl font-semibold">Frequently asked questions</h2>
