@@ -10,7 +10,7 @@ export default function ScanPanel() {
 
   const compressImage = (file, maxDim = 1024) =>
     new Promise((resolve) => {
-      const img = new Image();
+      const img = new window.Image();
       img.onload = () => {
         let { width, height } = img;
         if (width > maxDim || height > maxDim) {
