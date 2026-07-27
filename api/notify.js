@@ -31,7 +31,7 @@ module.exports = async function handler(req, res) {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: 'RecycleConnect <noreply@recycleconnect.my>',
+        from: 'RecycleConnect <onboarding@resend.dev>',
         to: process.env.ADMIN_EMAIL || 'youhong.tyh@gmail.com',
         subject: `[RecycleConnect] ${subject || 'New message'} from ${name}`,
         text: `From: ${name} (${email})\nSubject: ${subject || '—'}\n\n${message}`,
