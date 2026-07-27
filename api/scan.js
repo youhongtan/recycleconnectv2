@@ -28,15 +28,15 @@ module.exports = async function handler(req, res) {
 
   try {
     const schema = { item: '', material: '', recyclable: '', instructions: '', tip: '' };
-    const textPrompt = prompt + '\n\nRespond in JSON with keys: item, material, recyclable, instructions, tip';
+    const textPrompt = prompt + '\n\nYou MUST respond with ONLY valid JSON. No markdown, no explanation. Use exactly these keys: item, material, recyclable, instructions, tip. Example: {"item": "water bottle", "material": "plastic", "recyclable": "Yes, rinse and remove cap", "instructions": "Empty and rinse. Remove label and cap. Place in recycling bin.", "tip": "One plastic bottle takes 450 years to decompose."}';
 
-    const messages = [{
-      role: 'user',
-      content: [{ type: 'text', text: textPrompt }],
-    }];
+    const messages = [
+      { role: 'system', content: 'You are a JSON-only assistant. Respond with valid JSON and nothing else.' },
+      { role: 'user', content: [{ type: 'text', text: textPrompt }] },
+    ];
 
     if (imageData) {
-      messages[0].content.push({ type: 'image_url', image_url: { url: imageData } });
+      messages[1].content.push({ type: 'image_url', image_url: { url: imageData } });
     }
 
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -45,16 +45,21 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         model: 'qwen/qwen3.6-27b',
         messages,
-        response_format: { type: 'json_object' },
         max_tokens: 1000,
       }),
     });
 
     const data = await r.json();
-    if (data.error) return send(res, 500, { error: data.error.message || 'Groq API error' });
+    if (data.error) {
+      const detail = data.error.failed_generation || data.error.message || JSON.stringify(data.error);
+      return send(res, 500, { error: `Groq API error: ${detail}` });
+    }
+    if (!data.choices) return send(res, 500, { error: 'Groq API error: no choices returned' });
 
-    const text = data?.choices?.[0]?.message?.content || '';
+    let text = data.choices[0]?.message?.content || '';
     if (!text) return send(res, 500, { error: 'Empty response from Groq' });
+
+    text = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
 
     const parsed = JSON.parse(text);
     return send(res, 200, { ...schema, ...parsed, _raw: text });

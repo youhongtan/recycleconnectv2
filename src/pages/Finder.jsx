@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/api/supabaseClient";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, Map as MapIcon } from "lucide-react";
 import SectionHeading from "@/components/common/SectionHeading";
 import Reveal from "@/components/common/Reveal";
 import MaterialFilters from "@/components/finder/MaterialFilters";
@@ -53,6 +53,16 @@ export default function Finder() {
             />
           </div>
           <MaterialFilters active={filters} onToggle={toggle} />
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <a
+              href="https://www.google.com/maps/search/recycling+center+malaysia/"
+              target="_blank"
+              rel="noreferrer"
+              className="h-11 px-5 rounded-full border border-primary/40 text-sm font-semibold inline-flex items-center gap-2 hover:bg-primary/5 transition"
+            >
+              <MapIcon className="w-4 h-4" /> Find more on Google Maps
+            </a>
+          </div>
         </div>
       </Reveal>
 
