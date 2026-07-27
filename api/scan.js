@@ -20,7 +20,7 @@ module.exports = async function handler(req, res) {
   let body;
   try { body = JSON.parse(bodyStr); } catch { return send(res, 400, { error: 'Invalid JSON body' }); }
 
-  const { prompt, imageUrl } = body;
+  const { prompt, imageData } = body;
   if (!prompt) return send(res, 400, { error: 'Prompt is required' });
 
   const apiKey = process.env.VITE_GROQ_API_KEY;
@@ -34,8 +34,8 @@ module.exports = async function handler(req, res) {
       content: [{ type: 'text', text: fullPrompt }],
     }];
 
-    if (imageUrl) {
-      messages[0].content.push({ type: 'image_url', image_url: { url: imageUrl } });
+    if (imageData) {
+      messages[0].content.push({ type: 'image_url', image_url: { url: imageData } });
     }
 
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {

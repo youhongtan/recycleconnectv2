@@ -1,24 +1,20 @@
 import React, { useState } from "react";
-import { supabase } from "@/api/supabaseClient";
 import { Upload, Loader2, Recycle } from "lucide-react";
 import { Image } from "@/components/ui/image";
-
-const SCHEMA = {
-  type: "object",
-  properties: {
-    item: { type: "string" },
-    material: { type: "string" },
-    recyclable: { type: "string" },
-    instructions: { type: "string" },
-    tip: { type: "string" },
-  },
-};
 
 export default function ScanPanel() {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+
+  const fileToBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
 
   const onFile = async (e) => {
     const file = e.target.files?.[0];
@@ -29,21 +25,13 @@ export default function ScanPanel() {
     setPreview(URL.createObjectURL(file));
 
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("uploads")
-        .upload(fileName, file);
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage.from("uploads").getPublicUrl(fileName);
-
+      const imageData = await fileToBase64(file);
       const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: "You are a Malaysian recycling expert. Look at this photo and identify the item. Reply with: the item name, its material, whether it is recyclable in Malaysia (and any conditions), step-by-step preparation instructions, and one short environmental tip. Keep language simple and friendly.",
-          imageUrl: publicUrl,
+          imageData,
         }),
       });
       const data = await res.json();
