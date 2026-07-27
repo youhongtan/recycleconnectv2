@@ -58,7 +58,7 @@ module.exports = async function handler(req, res) {
     if (!match) return send(res, 500, { error: 'Could not parse JSON from response', raw: text });
 
     const parsed = JSON.parse(match[0]);
-    return send(res, 200, parsed);
+    return send(res, 200, { ...parsed, _raw: text });
   } catch (error) {
     return send(res, 500, { error: error.message });
   }

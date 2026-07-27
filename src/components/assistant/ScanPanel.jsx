@@ -95,15 +95,21 @@ export default function ScanPanel() {
           ].map(([label, value]) => (
             <div key={label} className="glass rounded-3xl p-5">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
-              <p className="mt-1 font-medium">{value}</p>
+              <p className="mt-1 font-medium">{value || "—"}</p>
             </div>
           ))}
           <div className="glass rounded-3xl p-5 sm:col-span-2">
             <p className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
               <Recycle className="w-3.5 h-3.5" /> How to recycle it
             </p>
-            <p className="mt-1 whitespace-pre-line">{result.instructions}</p>
+            <p className="mt-1 whitespace-pre-line">{result.instructions || "—"}</p>
           </div>
+          {result._raw && (
+            <details className="sm:col-span-2 text-xs text-muted-foreground">
+              <summary className="cursor-pointer">Debug: raw Groq response</summary>
+              <pre className="mt-2 p-3 bg-muted rounded-xl overflow-auto max-h-48 whitespace-pre-wrap">{result._raw}</pre>
+            </details>
+          )}
         </div>
       )}
 
