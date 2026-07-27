@@ -6,10 +6,14 @@ export default function Messages() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState("");
+
   const fetch = async () => {
     setLoading(true);
-    const { data } = await supabase.from('feedback').select('*').order('created_at', { ascending: false });
-    if (data) setMessages(data);
+    setError("");
+    const { data, error: err } = await supabase.from('feedback').select('*').order('created_at', { ascending: false });
+    if (err) setError(err.message);
+    else if (data) setMessages(data);
     setLoading(false);
   };
 
@@ -34,6 +38,8 @@ export default function Messages() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+      ) : error ? (
+        <div className="text-center py-20 text-destructive">{error}</div>
       ) : messages.length === 0 ? (
         <div className="text-center py-20 text-muted-foreground">No messages yet.</div>
       ) : (

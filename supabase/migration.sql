@@ -171,6 +171,12 @@ CREATE POLICY "users_insert_reviews" ON reviews FOR INSERT WITH CHECK (TRUE);
 DROP POLICY IF EXISTS "users_insert_feedback" ON feedback;
 CREATE POLICY "users_insert_feedback" ON feedback FOR INSERT WITH CHECK (TRUE);
 
+DROP POLICY IF EXISTS "admin_read_feedback" ON feedback;
+CREATE POLICY "admin_read_feedback" ON feedback FOR SELECT USING (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'));
+
+DROP POLICY IF EXISTS "admin_delete_feedback" ON feedback;
+CREATE POLICY "admin_delete_feedback" ON feedback FOR DELETE USING (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'));
+
 DROP POLICY IF EXISTS "users_read_own_role" ON user_roles;
 DROP POLICY IF EXISTS "admin_read_all_roles" ON user_roles;
 DROP POLICY IF EXISTS "admin_update_roles" ON user_roles;
