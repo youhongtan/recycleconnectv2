@@ -49,6 +49,12 @@ module.exports = async function handler(req, res) {
       }),
     });
 
+    const contentType = r.headers.get('content-type') || '';
+    if (!contentType.includes('json')) {
+      const html = await r.text();
+      return send(res, 502, { error: `Groq returned non-JSON (${r.status}): ${html.slice(0, 200)}` });
+    }
+
     const data = await r.json();
     if (data.error) {
       const detail = data.error.failed_generation || data.error.message || JSON.stringify(data.error);
@@ -59,7 +65,13 @@ module.exports = async function handler(req, res) {
     let text = data.choices[0]?.message?.content || '';
     if (!text) return send(res, 500, { error: 'Empty response from Groq' });
 
-    text = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    text = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '').trim();
+
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      text = text.slice(firstBrace, lastBrace + 1);
+    }
 
     const parsed = JSON.parse(text);
     return send(res, 200, { ...schema, ...parsed, _raw: text });
