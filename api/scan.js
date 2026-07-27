@@ -1,18 +1,22 @@
-module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+function send(res, code, data) {
+  res.statusCode = code;
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify(data));
+}
 
-  const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+module.exports = async function handler(req, res) {
+  if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
+
+  let body;
+  try {
+    body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+  } catch { return send(res, 400, { error: 'Invalid JSON body' }); }
+
   const { prompt, imageUrl } = body;
-  if (!prompt) {
-    return res.status(400).json({ error: 'Prompt is required' });
-  }
+  if (!prompt) return send(res, 400, { error: 'Prompt is required' });
 
   const apiKey = process.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'Gemini API key not configured' });
-  }
+  if (!apiKey) return send(res, 500, { error: 'Gemini API key not configured' });
 
   try {
     let base64, mime;
@@ -40,8 +44,8 @@ module.exports = async function handler(req, res) {
     const match = text.match(/\{[\s\S]*\}/);
     const parsed = match ? JSON.parse(match[0]) : {};
 
-    return res.json(parsed);
+    return send(res, 200, parsed);
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return send(res, 500, { error: error.message });
   }
 };

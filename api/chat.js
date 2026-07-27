@@ -30,16 +30,22 @@ async function callGeminiChat(prompt, apiKey) {
   return r.json();
 }
 
-module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+function send(res, code, data) {
+  res.statusCode = code;
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify(data));
+}
 
-  const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+module.exports = async function handler(req, res) {
+  if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
+
+  let body;
+  try {
+    body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+  } catch { return send(res, 400, { error: 'Invalid JSON body' }); }
+
   const { prompt } = body;
-  if (!prompt) {
-    return res.status(400).json({ error: 'Prompt is required' });
-  }
+  if (!prompt) return send(res, 400, { error: 'Prompt is required' });
 
   const groqKey = process.env.VITE_GROQ_API_KEY;
   const geminiKey = process.env.VITE_GEMINI_API_KEY;
@@ -68,8 +74,8 @@ module.exports = async function handler(req, res) {
       answer = 'No AI API keys configured.';
     }
 
-    return res.json({ answer });
+    return send(res, 200, { answer });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return send(res, 500, { error: error.message });
   }
 };
