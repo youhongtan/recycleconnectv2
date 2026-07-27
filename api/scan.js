@@ -27,11 +27,12 @@ module.exports = async function handler(req, res) {
   if (!apiKey) return send(res, 500, { error: 'Groq API key not configured' });
 
   try {
-    const fullPrompt = prompt + '\n\nRespond in JSON only: item, material, recyclable, instructions, tip';
+    const schema = { item: '', material: '', recyclable: '', instructions: '', tip: '' };
+    const textPrompt = prompt + '\n\nRespond in JSON with keys: item, material, recyclable, instructions, tip';
 
     const messages = [{
       role: 'user',
-      content: [{ type: 'text', text: fullPrompt }],
+      content: [{ type: 'text', text: textPrompt }],
     }];
 
     if (imageData) {
@@ -42,8 +43,9 @@ module.exports = async function handler(req, res) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'llama-3.2-11b-vision-preview',
+        model: 'qwen/qwen3.6-27b',
         messages,
+        response_format: { type: 'json_object' },
         max_tokens: 1000,
       }),
     });
@@ -54,11 +56,8 @@ module.exports = async function handler(req, res) {
     const text = data?.choices?.[0]?.message?.content || '';
     if (!text) return send(res, 500, { error: 'Empty response from Groq' });
 
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) return send(res, 500, { error: 'Could not parse JSON from response', raw: text });
-
-    const parsed = JSON.parse(match[0]);
-    return send(res, 200, { ...parsed, _raw: text });
+    const parsed = JSON.parse(text);
+    return send(res, 200, { ...schema, ...parsed, _raw: text });
   } catch (error) {
     return send(res, 500, { error: error.message });
   }
