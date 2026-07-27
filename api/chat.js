@@ -35,7 +35,8 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { prompt } = req.body;
+  const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+  const { prompt } = body;
   if (!prompt) {
     return res.status(400).json({ error: 'Prompt is required' });
   }
