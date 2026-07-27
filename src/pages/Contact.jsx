@@ -28,6 +28,7 @@ export default function Contact() {
     try {
       const { error: insertError } = await supabase.from('feedback').insert(form);
       if (insertError) throw insertError;
+      fetch('/api/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }).catch(() => {});
       setSent(true);
       setForm({ name: "", email: "", subject: "", message: "" });
     } catch {

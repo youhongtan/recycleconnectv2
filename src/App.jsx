@@ -28,6 +28,7 @@ import AdminDashboard from '@/pages/admin/AdminDashboard';
 import UserManagement from '@/pages/admin/UserManagement';
 import CentreManagement from '@/pages/admin/CentreManagement';
 import QRManagement from '@/pages/admin/QRManagement';
+import Messages from '@/pages/admin/Messages';
 
 const AUTH_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password'];
 
@@ -76,6 +77,7 @@ const AuthenticatedApp = () => {
         <Route path="/admin/users" element={<UserManagement />} />
         <Route path="/admin/centres" element={<CentreManagement />} />
         <Route path="/admin/qr" element={<QRManagement />} />
+        <Route path="/admin/messages" element={<Messages />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

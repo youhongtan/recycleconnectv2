@@ -29,6 +29,7 @@ const STRINGS = {
     userMgmt: "Users",
     centreMgmt: "Centres",
     qrCodes: "QR Codes",
+    messages: "Messages",
     backToSite: "Back to Site",
   },
   ms: {
@@ -53,6 +54,7 @@ const STRINGS = {
     userMgmt: "Pengguna",
     centreMgmt: "Pusat",
     qrCodes: "Kod QR",
+    messages: "Mesej",
     backToSite: "Kembali ke Laman",
   },
   zh: {
@@ -77,6 +79,7 @@ const STRINGS = {
     userMgmt: "用户",
     centreMgmt: "中心",
     qrCodes: "二维码",
+    messages: "消息",
     backToSite: "返回网站",
   },
 };
