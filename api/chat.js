@@ -36,13 +36,21 @@ function send(res, code, data) {
   res.end(JSON.stringify(data));
 }
 
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', (c) => body += c);
+    req.on('end', () => resolve(body));
+    req.on('error', reject);
+  });
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
 
+  const bodyStr = await readBody(req);
   let body;
-  try {
-    body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-  } catch { return send(res, 400, { error: 'Invalid JSON body' }); }
+  try { body = JSON.parse(bodyStr); } catch { return send(res, 400, { error: 'Invalid JSON body' }); }
 
   const { prompt } = body;
   if (!prompt) return send(res, 400, { error: 'Prompt is required' });
