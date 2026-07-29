@@ -38,6 +38,8 @@ export default function Footer() {
             <li><Link to="/finder" className="hover:text-primary">Centre Finder</Link></li>
             <li><Link to="/assistant" className="hover:text-primary">AI Assistant</Link></li>
             <li><Link to="/pollution" className="hover:text-primary">Malaysia Pollution</Link></li>
+            <li><Link to="/rewards" className="hover:text-primary">Eco Rewards</Link></li>
+            <li><Link to="/challenges" className="hover:text-primary">Challenges</Link></li>
           </ul>
         </div>
         <div>
@@ -51,7 +53,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="border-t border-border/60 py-6 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} RecycleConnect Malaysia. Built for a greener tomorrow.
+        Made by <span className="font-semibold">You Hong Tan</span> &middot; © {new Date().getFullYear()} RecycleConnect Malaysia. Built for a greener tomorrow.
       </div>
     </footer>
   );

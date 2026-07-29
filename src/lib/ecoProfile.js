@@ -17,6 +17,7 @@ export async function getOrCreateProfile() {
     .insert({
       user_id: user.id,
       display_name: user.user_metadata?.full_name || 'Eco Hero',
+      email: user.email,
       xp: 0,
       eco_points: 0,
       items_recycled: 0,

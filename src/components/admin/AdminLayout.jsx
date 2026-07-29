@@ -1,8 +1,8 @@
 import React from "react";
 import { Outlet, Link, NavLink } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
-import { I18nProvider, useI18n } from "@/lib/i18n";
-import { Leaf, LayoutDashboard, Users, MapPin, QrCode, Mail, ArrowLeft, ShieldAlert, Loader2 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
+import { Leaf, LayoutDashboard, Users, MapPin, QrCode, Mail, UserCheck, ArrowLeft, ShieldAlert, Loader2 } from "lucide-react";
 
 const NAV = [
   { to: "/admin", key: "dashboard", icon: LayoutDashboard, end: true },
@@ -10,6 +10,7 @@ const NAV = [
   { to: "/admin/centres", key: "centreMgmt", icon: MapPin },
   { to: "/admin/messages", key: "messages", icon: Mail },
   { to: "/admin/qr", key: "qrCodes", icon: QrCode },
+  { to: "/admin/check-in", key: "staffCheckIn", icon: UserCheck },
 ];
 
 function AdminContent() {
@@ -78,9 +79,5 @@ function AdminContent() {
 }
 
 export default function AdminLayout() {
-  return (
-    <I18nProvider>
-      <AdminContent />
-    </I18nProvider>
-  );
+  return <AdminContent />;
 }

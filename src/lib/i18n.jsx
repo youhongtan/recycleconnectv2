@@ -20,6 +20,7 @@ const STRINGS = {
     profile: "Profile",
     about: "About",
     contact: "Contact",
+    more: "More",
     rewards: "Rewards",
     challenges: "Challenges",
     leaderboard: "Leaderboard",
@@ -30,6 +31,7 @@ const STRINGS = {
     centreMgmt: "Centres",
     qrCodes: "QR Codes",
     messages: "Messages",
+    staffCheckIn: "Staff Check-In",
     backToSite: "Back to Site",
   },
   ms: {
@@ -45,6 +47,7 @@ const STRINGS = {
     profile: "Profil",
     about: "Tentang",
     contact: "Hubungi",
+    more: "Lagi",
     rewards: "Ganjaran",
     challenges: "Cabaran",
     leaderboard: "Papan Pendahulu",
@@ -55,6 +58,7 @@ const STRINGS = {
     centreMgmt: "Pusat",
     qrCodes: "Kod QR",
     messages: "Mesej",
+    staffCheckIn: "Check-In Staf",
     backToSite: "Kembali ke Laman",
   },
   zh: {
@@ -70,6 +74,7 @@ const STRINGS = {
     profile: "个人",
     about: "关于",
     contact: "联系",
+    more: "更多",
     rewards: "奖励",
     challenges: "挑战",
     leaderboard: "排行榜",
@@ -80,6 +85,7 @@ const STRINGS = {
     centreMgmt: "中心",
     qrCodes: "二维码",
     messages: "消息",
+    staffCheckIn: "员工签入",
     backToSite: "返回网站",
   },
 };

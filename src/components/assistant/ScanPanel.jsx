@@ -32,11 +32,13 @@ export default function ScanPanel() {
     const file = e.target.files?.[0];
     if (!file) return;
     setResult(null);
-    setError("");
     setLoading(true);
     setPreview(URL.createObjectURL(file));
+    setError("");
 
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 120000);
       const imageData = await compressImage(file);
       const res = await fetch("/api/scan", {
         method: "POST",
@@ -45,12 +47,14 @@ export default function ScanPanel() {
           prompt: "You are a Malaysian recycling expert. Look at this photo and identify the item. Reply with: the item name, its material, whether it is recyclable in Malaysia (and any conditions), step-by-step preparation instructions, and one short environmental tip. Keep language simple and friendly.",
           imageData,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timer);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setResult(data);
-    } catch (err) {
-      setError(err.message || "Failed to analyze the image. Please try again.");
+    } catch {
+      setError("We're having trouble analyzing that image. Please try again.");
     }
     setLoading(false);
   };
@@ -68,9 +72,10 @@ export default function ScanPanel() {
         <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={onFile} />
       </label>
 
-      {error && (
+      {error && !loading && (
         <div className="mt-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
           {error}
+          <button onClick={() => setError("")} className="ml-2 underline text-xs">Dismiss</button>
         </div>
       )}
 
@@ -104,12 +109,6 @@ export default function ScanPanel() {
             </p>
             <p className="mt-1 whitespace-pre-line">{result.instructions || "—"}</p>
           </div>
-          {result._raw && (
-            <details className="sm:col-span-2 text-xs text-muted-foreground">
-              <summary className="cursor-pointer">Debug: raw Groq response</summary>
-              <pre className="mt-2 p-3 bg-muted rounded-xl overflow-auto max-h-48 whitespace-pre-wrap">{result._raw}</pre>
-            </details>
-          )}
         </div>
       )}
 

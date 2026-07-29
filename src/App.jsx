@@ -4,6 +4,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import { I18nProvider } from '@/lib/i18n';
 import ScrollToTop from './components/ScrollToTop';
 import SiteLayout from '@/components/layout/SiteLayout';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -29,6 +30,7 @@ import UserManagement from '@/pages/admin/UserManagement';
 import CentreManagement from '@/pages/admin/CentreManagement';
 import QRManagement from '@/pages/admin/QRManagement';
 import Messages from '@/pages/admin/Messages';
+import StaffCheckIn from '@/pages/admin/StaffCheckIn';
 
 const AUTH_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password'];
 
@@ -77,6 +79,7 @@ const AuthenticatedApp = () => {
         <Route path="/admin/users" element={<UserManagement />} />
         <Route path="/admin/centres" element={<CentreManagement />} />
         <Route path="/admin/qr" element={<QRManagement />} />
+        <Route path="/admin/check-in" element={<StaffCheckIn />} />
         <Route path="/admin/messages" element={<Messages />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
@@ -88,10 +91,12 @@ function App() {
   return (
     <Router>
       <QueryClientProvider client={queryClientInstance}>
-        <AuthProvider>
-          <ScrollToTop />
-          <AuthenticatedApp />
-        </AuthProvider>
+        <I18nProvider>
+          <AuthProvider>
+            <ScrollToTop />
+            <AuthenticatedApp />
+          </AuthProvider>
+        </I18nProvider>
         <Toaster />
       </QueryClientProvider>
     </Router>

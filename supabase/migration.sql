@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS eco_profiles (
   streak_days INTEGER DEFAULT 0,
   badges TEXT[] DEFAULT '{}',
   display_name TEXT DEFAULT 'Eco Hero',
+  email TEXT,
   redeemed_rewards TEXT[] DEFAULT '{}',
   favourite_centres TEXT[] DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -155,14 +156,18 @@ ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "users_read_own_profile" ON eco_profiles;
 DROP POLICY IF EXISTS "users_insert_own_profile" ON eco_profiles;
 DROP POLICY IF EXISTS "users_update_own_profile" ON eco_profiles;
+DROP POLICY IF EXISTS "admin_all_eco_profiles" ON eco_profiles;
 CREATE POLICY "users_read_own_profile" ON eco_profiles FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "users_insert_own_profile" ON eco_profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "users_update_own_profile" ON eco_profiles FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "admin_all_eco_profiles" ON eco_profiles FOR ALL USING (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'));
 
 DROP POLICY IF EXISTS "users_read_own_logs" ON recycle_logs;
 DROP POLICY IF EXISTS "users_insert_own_logs" ON recycle_logs;
+DROP POLICY IF EXISTS "admin_all_recycle_logs" ON recycle_logs;
 CREATE POLICY "users_read_own_logs" ON recycle_logs FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "users_insert_own_logs" ON recycle_logs FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "admin_all_recycle_logs" ON recycle_logs FOR ALL USING (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'));
 
 DROP POLICY IF EXISTS "public_read_centres" ON recycling_centres;
 DROP POLICY IF EXISTS "admin_all_centres" ON recycling_centres;
@@ -204,8 +209,8 @@ CREATE POLICY "admin_update_roles" ON user_roles FOR UPDATE USING (EXISTS (SELEC
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.eco_profiles (user_id, display_name)
-  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'full_name', 'Eco Hero'))
+  INSERT INTO public.eco_profiles (user_id, display_name, email)
+  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'full_name', 'Eco Hero'), NEW.email)
   ON CONFLICT (user_id) DO NOTHING;
   INSERT INTO public.user_roles (user_id, role)
   VALUES (NEW.id, 'user')

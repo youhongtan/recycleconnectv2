@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { supabase } from "@/api/supabaseClient";
 import SectionHeading from "@/components/common/SectionHeading";
 import Reveal from "@/components/common/Reveal";
-import { Send, CheckCircle2, Instagram, Facebook, Youtube } from "lucide-react";
+import { Send, CheckCircle2 } from "lucide-react";
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
@@ -92,16 +92,7 @@ export default function Contact() {
               </Accordion>
             </div>
           </Reveal>
-          <Reveal delay={0.15}>
-            <div className="glass orbital soft-shadow p-8">
-              <h2 className="text-2xl font-semibold">Follow the movement</h2>
-              <div className="mt-5 flex gap-3">
-                <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram" className="h-12 w-12 rounded-full bg-primary/12 grid place-items-center hover:bg-primary/20"><Instagram className="w-5 h-5 text-primary" /></a>
-                <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook" className="h-12 w-12 rounded-full bg-primary/12 grid place-items-center hover:bg-primary/20"><Facebook className="w-5 h-5 text-primary" /></a>
-                <a href="https://youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube" className="h-12 w-12 rounded-full bg-primary/12 grid place-items-center hover:bg-primary/20"><Youtube className="w-5 h-5 text-primary" /></a>
-              </div>
-            </div>
-          </Reveal>
+
         </div>
       </div>
     </div>

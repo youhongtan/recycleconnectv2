@@ -21,19 +21,23 @@ export default function ChatPanel() {
     setInput("");
     setLoading(true);
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 120000);
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: question }),
+        signal: controller.signal,
       });
+      clearTimeout(timer);
       const data = await res.json();
       if (data.error) {
-        setMessages((m) => [...m, { role: "ai", text: `Error: ${data.error}` }]);
+        setMessages((m) => [...m, { role: "ai", text: "I'm having trouble finding an answer right now. Please try again in a moment." }]);
       } else {
         setMessages((m) => [...m, { role: "ai", text: data.answer }]);
       }
-    } catch (err) {
-      setMessages((m) => [...m, { role: "ai", text: `Sorry, I couldn't process that. ${err.message || "Please try again."}` }]);
+    } catch {
+      setMessages((m) => [...m, { role: "ai", text: "Still working on it — please wait a moment and try again." }]);
     }
     setLoading(false);
   };
