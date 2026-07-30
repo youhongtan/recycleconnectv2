@@ -74,8 +74,9 @@ module.exports = async function handler(req, res) {
     }
 
     const parsed = JSON.parse(text);
-    return send(res, 200, { ...schema, ...parsed, _raw: text });
+    return send(res, 200, { ...schema, ...parsed });
   } catch (error) {
+    console.error('Scan API error:', error.message);
     return send(res, 500, { error: error.message });
   }
 };

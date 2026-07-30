@@ -53,7 +53,8 @@ export default function ScanPanel() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setResult(data);
-    } catch {
+    } catch (err) {
+      console.error("ScanPanel error:", err);
       setError("We're having trouble analyzing that image. Please try again.");
     }
     setLoading(false);
