@@ -56,11 +56,15 @@ export default function ScanPanel() {
     } catch (err) {
       console.error("ScanPanel error:", err);
       const msg = err?.message || "";
-      setError(
-        msg.includes("Rate limit") || msg.includes("rate limit")
-          ? "Too many scans right now. Please wait about a minute and try again."
-          : `We couldn't analyze that image. ${msg || "Please try again."}`
-      );
+      if (msg.includes("Rate limit") || msg.includes("rate limit")) {
+        if (msg.includes("day") || msg.includes("TPD") || msg.includes("per day")) {
+          setError("Daily AI scan limit reached (free tier allows ~55 scans/day). Try again tomorrow, or upgrade the Groq plan for more.");
+        } else {
+          setError("Too many scans right now. Please wait about a minute and try again.");
+        }
+      } else {
+        setError(`We couldn't analyze that image. ${msg || "Please try again."}`);
+      }
     }
     setLoading(false);
   };

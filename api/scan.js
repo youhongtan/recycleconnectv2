@@ -15,10 +15,7 @@ function readBody(req) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const MODELS = [
-  'meta-llama/llama-4-scout-17b-16e-instruct',
-  'qwen/qwen3.6-27b',
-];
+const MODELS = ['qwen/qwen3.6-27b'];
 
 async function groqRequest(apiKey, messages) {
   for (const model of MODELS) {
