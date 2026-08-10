@@ -23,11 +23,13 @@ async function groqRequest(apiKey, messages) {
       const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          model,
-          messages,
-          max_tokens: 1000,
-        }),
+      body: JSON.stringify({
+        model,
+        messages,
+        max_tokens: 1000,
+        reasoning_effort: 'none',
+        response_format: { type: 'json_object' },
+      }),
       });
 
       const contentType = r.headers.get('content-type') || '';
