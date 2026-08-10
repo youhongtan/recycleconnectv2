@@ -13,6 +13,41 @@ function readBody(req) {
   });
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function groqRequest(apiKey, messages) {
+  const maxRetries = 3;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'qwen/qwen3.6-27b',
+        messages,
+        max_tokens: 1000,
+      }),
+    });
+
+    const contentType = r.headers.get('content-type') || '';
+    if (!contentType.includes('json')) {
+      const html = await r.text();
+      throw new Error(`Groq returned non-JSON (${r.status}): ${html.slice(0, 200)}`);
+    }
+
+    const data = await r.json();
+    if (r.status === 429 && data?.error) {
+      const detail = data.error.failed_generation || data.error.message || '';
+      const match = detail.match(/try again in ([\d.]+)s/i);
+      const waitMs = match ? Math.ceil(parseFloat(match[1]) * 1000) + 500 : 3000;
+      console.error(`Groq rate limited (attempt ${attempt + 1}/${maxRetries}), waiting ${waitMs}ms`);
+      if (attempt < maxRetries - 1) await sleep(waitMs);
+      continue;
+    }
+    return { status: r.status, data };
+  }
+  return { status: 429, data: { error: { message: 'Rate limit reached after retries. Please wait a minute and try again.' } } };
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
 
@@ -39,23 +74,11 @@ module.exports = async function handler(req, res) {
       messages[1].content.push({ type: 'image_url', image_url: { url: imageData } });
     }
 
-    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: 'qwen/qwen3.6-27b',
-        messages,
-        max_tokens: 1000,
-      }),
-    });
-
-    const contentType = r.headers.get('content-type') || '';
-    if (!contentType.includes('json')) {
-      const html = await r.text();
-      return send(res, 502, { error: `Groq returned non-JSON (${r.status}): ${html.slice(0, 200)}` });
+    const { status, data } = await groqRequest(apiKey, messages);
+    if (status !== 200) {
+      const detail = data?.error?.failed_generation || data?.error?.message || JSON.stringify(data?.error || data);
+      return send(res, status, { error: detail });
     }
-
-    const data = await r.json();
     if (data.error) {
       const detail = data.error.failed_generation || data.error.message || JSON.stringify(data.error);
       return send(res, 500, { error: `Groq API error: ${detail}` });

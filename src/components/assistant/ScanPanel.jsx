@@ -8,7 +8,7 @@ export default function ScanPanel() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
 
-  const compressImage = (file, maxDim = 1024) =>
+  const compressImage = (file, maxDim = 512) =>
     new Promise((resolve) => {
       const img = new window.Image();
       img.onload = () => {
@@ -23,7 +23,7 @@ export default function ScanPanel() {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
       };
       img.src = URL.createObjectURL(file);
     });
