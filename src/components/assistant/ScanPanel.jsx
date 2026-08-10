@@ -55,7 +55,12 @@ export default function ScanPanel() {
       setResult(data);
     } catch (err) {
       console.error("ScanPanel error:", err);
-      setError("We're having trouble analyzing that image. Please try again.");
+      const msg = err?.message || "";
+      setError(
+        msg.includes("Rate limit") || msg.includes("rate limit")
+          ? "Too many scans right now. Please wait about a minute and try again."
+          : `We couldn't analyze that image. ${msg || "Please try again."}`
+      );
     }
     setLoading(false);
   };

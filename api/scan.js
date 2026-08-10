@@ -15,35 +15,47 @@ function readBody(req) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const MODELS = [
+  'meta-llama/llama-4-scout-17b-16e-instruct',
+  'qwen/qwen3.6-27b',
+];
+
 async function groqRequest(apiKey, messages) {
-  const maxRetries = 3;
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: 'qwen/qwen3.6-27b',
-        messages,
-        max_tokens: 1000,
-      }),
-    });
+  for (const model of MODELS) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model,
+          messages,
+          max_tokens: 1000,
+        }),
+      });
 
-    const contentType = r.headers.get('content-type') || '';
-    if (!contentType.includes('json')) {
-      const html = await r.text();
-      throw new Error(`Groq returned non-JSON (${r.status}): ${html.slice(0, 200)}`);
-    }
+      const contentType = r.headers.get('content-type') || '';
+      if (!contentType.includes('json')) {
+        const html = await r.text();
+        console.error(`Groq non-JSON (${r.status}) for ${model}: ${html.slice(0, 200)}`);
+        break;
+      }
 
-    const data = await r.json();
-    if (r.status === 429 && data?.error) {
-      const detail = data.error.failed_generation || data.error.message || '';
-      const match = detail.match(/try again in ([\d.]+)s/i);
-      const waitMs = match ? Math.ceil(parseFloat(match[1]) * 1000) + 500 : 3000;
-      console.error(`Groq rate limited (attempt ${attempt + 1}/${maxRetries}), waiting ${waitMs}ms`);
-      if (attempt < maxRetries - 1) await sleep(waitMs);
-      continue;
+      const data = await r.json();
+      if (r.status === 429 && data?.error) {
+        const detail = data.error.failed_generation || data.error.message || '';
+        const match = detail.match(/try again in ([\d.]+)s/i);
+        const waitMs = match ? Math.ceil(parseFloat(match[1]) * 1000) + 500 : 3000;
+        console.error(`Groq rate limited on ${model} (attempt ${attempt + 1}/3), waiting ${waitMs}ms`);
+        if (attempt < 2) await sleep(waitMs);
+        continue;
+      }
+      if (r.status === 400 && /image/i.test(data?.error?.message || '')) {
+        console.error(`Groq rejected image on ${model}: ${data.error.message}`);
+        break;
+      }
+      return { status: r.status, data, model };
     }
-    return { status: r.status, data };
+    console.error(`Model ${model} failed, trying next...`);
   }
   return { status: 429, data: { error: { message: 'Rate limit reached after retries. Please wait a minute and try again.' } } };
 }
