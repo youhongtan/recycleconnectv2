@@ -33,7 +33,7 @@ module.exports = defineConfig(({ mode }) => {
   }
 
   async function callGeminiChat(prompt) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${requireKey('VITE_GEMINI_API_KEY')}`, {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${requireKey('VITE_GEMINI_API_KEY')}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -92,7 +92,7 @@ module.exports = defineConfig(({ mode }) => {
                 const base64 = Buffer.from(imageBuffer).toString('base64');
                 const mime = imageRes.headers.get('content-type') || 'image/jpeg';
 
-                const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${requireKey('VITE_GEMINI_API_KEY')}`, {
+                const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${requireKey('VITE_GEMINI_API_KEY')}`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
