@@ -3,12 +3,15 @@ function isComplex(prompt) {
   return complex.some((w) => prompt.toLowerCase().includes(w));
 }
 
-async function callGroq(prompt, apiKey) {
+const GROQ_MODELS = ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'openai/gpt-oss-20b'];
+const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-2.5-flash'];
+
+async function callGroq(prompt, apiKey, model) {
   const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model: 'llama-3.1-8b-instant',
+      model,
       messages: [
         { role: 'system', content: 'You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer simply, accurately and in 3-5 short sentences.' },
         { role: 'user', content: `Question: ${prompt}` },
@@ -19,8 +22,8 @@ async function callGroq(prompt, apiKey) {
   return r.json();
 }
 
-async function callGeminiChat(prompt, apiKey) {
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+async function callGeminiChat(prompt, apiKey, model) {
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -28,6 +31,18 @@ async function callGeminiChat(prompt, apiKey) {
     }),
   });
   return r.json();
+}
+
+function groqAnswer(data) {
+  return data?.choices?.[0]?.message?.content || '';
+}
+
+function geminiAnswer(data) {
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+function modelUnavailable(msg) {
+  return /no longer|not found|not available|does not exist|model.*(?:unavailable|deprecated)/i.test(msg);
 }
 
 function send(res, code, data) {
@@ -57,33 +72,32 @@ module.exports = async function handler(req, res) {
 
   const groqKey = process.env.VITE_GROQ_API_KEY;
   const geminiKey = process.env.VITE_GEMINI_API_KEY;
+  const errors = [];
 
-  try {
-    let answer;
+  const order = isComplex(prompt)
+    ? [...GEMINI_MODELS.map((m) => ['gemini', m]), ...GROQ_MODELS.map((m) => ['groq', m])]
+    : [...GROQ_MODELS.map((m) => ['groq', m]), ...GEMINI_MODELS.map((m) => ['gemini', m])];
 
-    if (isComplex(prompt) && geminiKey) {
-      const data = await callGeminiChat(prompt, geminiKey);
-      answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      if (!answer) answer = data?.error?.message || '';
-    } else if (groqKey) {
-      const data = await callGroq(prompt, groqKey);
-      if (data?.choices?.[0]?.message?.content) {
-        answer = data.choices[0].message.content;
-      } else if (geminiKey) {
-        const geminiData = await callGeminiChat(prompt, geminiKey);
-        answer = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || geminiData?.error?.message || '';
-      } else {
-        answer = 'AI service unavailable. Please configure an API key.';
-      }
-    } else if (geminiKey) {
-      const data = await callGeminiChat(prompt, geminiKey);
-      answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || data?.error?.message || '';
-    } else {
-      answer = 'No AI API keys configured.';
+  for (const [provider, model] of order) {
+    try {
+      const data = provider === 'groq' && groqKey
+        ? await callGroq(prompt, groqKey, model)
+        : provider === 'gemini' && geminiKey
+          ? await callGeminiChat(prompt, geminiKey, model)
+          : null;
+      if (!data) continue;
+
+      const answer = provider === 'groq' ? groqAnswer(data) : geminiAnswer(data);
+      if (answer) return send(res, 200, { answer });
+
+      const errMsg = data?.error?.message || 'empty response';
+      if (modelUnavailable(errMsg)) continue;
+      errors.push(`${provider}:${model} → ${errMsg}`);
+    } catch (e) {
+      errors.push(`${provider}:${model} → ${e.message}`);
     }
-
-    return send(res, 200, { answer });
-  } catch (error) {
-    return send(res, 500, { error: error.message });
   }
+
+  if (!groqKey && !geminiKey) return send(res, 500, { error: 'No AI API keys configured.' });
+  return send(res, 500, { error: `All AI models failed: ${errors.join(' | ') || 'unknown error'}` });
 };

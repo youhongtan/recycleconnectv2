@@ -16,12 +16,19 @@ module.exports = defineConfig(({ mode }) => {
     return complex.some((w) => prompt.toLowerCase().includes(w));
   }
 
-  async function callGroq(prompt) {
+  const GROQ_MODELS = ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'openai/gpt-oss-20b'];
+  const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-2.5-flash'];
+
+  function modelUnavailable(msg) {
+    return /no longer|not found|not available|does not exist|model.*(?:unavailable|deprecated)/i.test(msg);
+  }
+
+  async function callGroq(prompt, model) {
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${requireKey('VITE_GROQ_API_KEY')}` },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model,
         messages: [
           { role: 'system', content: 'You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer simply, accurately and in 3-5 short sentences.' },
           { role: 'user', content: `Question: ${prompt}` },
@@ -32,8 +39,8 @@ module.exports = defineConfig(({ mode }) => {
     return r.json();
   }
 
-  async function callGeminiChat(prompt) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${requireKey('VITE_GEMINI_API_KEY')}`, {
+  async function callGeminiChat(prompt, model) {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${requireKey('VITE_GEMINI_API_KEY')}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -41,6 +48,30 @@ module.exports = defineConfig(({ mode }) => {
       }),
     });
     return r.json();
+  }
+
+  async function groqChatFallback(prompt) {
+    for (const model of GROQ_MODELS) {
+      try {
+        const data = await callGroq(prompt, model);
+        const answer = data?.choices?.[0]?.message?.content || '';
+        if (answer) return answer;
+        if (!modelUnavailable(data?.error?.message || '')) break;
+      } catch { /* try next */ }
+    }
+    return '';
+  }
+
+  async function geminiChatFallback(prompt) {
+    for (const model of GEMINI_MODELS) {
+      try {
+        const data = await callGeminiChat(prompt, model);
+        const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (answer) return answer;
+        if (!modelUnavailable(data?.error?.message || '')) break;
+      } catch { /* try next */ }
+    }
+    return '';
   }
 
   return {
@@ -59,21 +90,17 @@ module.exports = defineConfig(({ mode }) => {
                 let answer;
 
                 if (isComplex(prompt)) {
-                  const data = await callGeminiChat(prompt);
-                  answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                  if (!answer) answer = data?.error?.message || '';
-                } else {
-                  const data = await callGroq(prompt);
-                  if (data?.choices?.[0]?.message?.content) {
-                    answer = data.choices[0].message.content;
-                  } else {
-                    const geminiData = await callGeminiChat(prompt);
-                    answer = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || geminiData?.error?.message || '';
-                  }
+                  answer = await geminiChatFallback(prompt);
+                }
+                if (!answer) {
+                  answer = await groqChatFallback(prompt);
+                }
+                if (!answer) {
+                  answer = await geminiChatFallback(prompt);
                 }
 
                 res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ answer }));
+                res.end(JSON.stringify({ answer: answer || 'AI service unavailable.' }));
               } catch (e) {
                 res.statusCode = 500; res.end(JSON.stringify({ error: e.message }));
               }
@@ -92,20 +119,26 @@ module.exports = defineConfig(({ mode }) => {
                 const base64 = Buffer.from(imageBuffer).toString('base64');
                 const mime = imageRes.headers.get('content-type') || 'image/jpeg';
 
-                const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${requireKey('VITE_GEMINI_API_KEY')}`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    contents: [{
-                      parts: [
-                        { text: prompt + '\n\nRespond in JSON: item, material, recyclable, instructions, tip' },
-                        { inline_data: { mime_type: mime, data: base64 } },
-                      ],
-                    }],
-                  }),
-                });
-                const data = await r.json();
-                const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+                let text = '';
+                for (const model of GEMINI_MODELS) {
+                  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${requireKey('VITE_GEMINI_API_KEY')}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      contents: [{
+                        parts: [
+                          { text: prompt + '\n\nRespond in JSON: item, material, recyclable, instructions, tip' },
+                          { inline_data: { mime_type: mime, data: base64 } },
+                        ],
+                      }],
+                    }),
+                  });
+                  const data = await r.json();
+                  text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                  if (text) break;
+                  if (!modelUnavailable(data?.error?.message || '')) break;
+                }
+
                 const match = text.match(/\{[\s\S]*\}/);
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify(match ? JSON.parse(match[0]) : {}));
