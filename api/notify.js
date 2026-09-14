@@ -57,7 +57,13 @@ async function sendEmail({ to, subject, text }) {
   });
   const data = await r.json();
   if (data.id) return { notified: true };
-  return { notified: false, error: data };
+  // Flatten to a string — callers display this directly.
+  const msg =
+    (typeof data?.message === "string" && data.message) ||
+    (typeof data?.error === "string" && data.error) ||
+    (typeof data?.error?.message === "string" && data.error.message) ||
+    JSON.stringify(data);
+  return { notified: false, error: msg };
 }
 
 module.exports = async function handler(req, res) {

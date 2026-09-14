@@ -131,7 +131,10 @@ export default function SchoolRequests() {
           .update({ status: "contacted" })
           .eq("id", r.id);
       } else {
-        setReplyResult(`fail: ${data.error || data.reason || "could not send"}`);
+        const detail = data.error || data.reason || "could not send";
+        setReplyResult(
+          `fail: ${typeof detail === "string" ? detail : JSON.stringify(detail)}`
+        );
       }
     } catch {
       setReplyResult("fail: network error");
