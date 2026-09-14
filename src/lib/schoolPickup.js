@@ -19,6 +19,16 @@ export function normalise(s) {
   return (s || "").toLowerCase().trim();
 }
 
+export const PICKUP_PREFERENCE_LABELS = {
+  weekday: "Weekdays only (Mon–Fri)",
+  weekend: "Weekends only (Sat–Sun)",
+};
+
+/** "Others: ..." free-text entries can't be matched to centre data. */
+export function isCustomMaterial(m) {
+  return /^others\b/i.test(m || "");
+}
+
 /**
  * Score one centre against a school request.
  * @param {object} centre - row from `recycling_centres`
@@ -31,8 +41,11 @@ export function scoreCentre(centre, request) {
   let score = 0;
   const reasons = [];
 
-  const matched = wanted.filter((m) => centreMats.includes(m));
-  if (wanted.length > 0 && matched.length === 0) {
+  // Only concrete materials participate in matching; "Others: ..." free text
+  // is confirmed manually with the school later.
+  const concrete = wanted.filter((m) => !isCustomMaterial(m));
+  const matched = concrete.filter((m) => centreMats.includes(m));
+  if (concrete.length > 0 && matched.length === 0) {
     // Centre cannot handle any requested material — push to the bottom.
     // (Material compatibility must outweigh pickup/rating bonuses.)
     score -= 10;
@@ -40,6 +53,8 @@ export function scoreCentre(centre, request) {
   } else if (matched.length > 0) {
     score += matched.length * 5;
     reasons.push(`Accepts ${matched.join(", ")}`);
+  } else if (wanted.length > 0) {
+    reasons.push("Custom materials — to confirm with school");
   }
 
   const loc = normalise(request.schoolAddress);

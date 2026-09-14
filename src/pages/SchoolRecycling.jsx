@@ -5,11 +5,14 @@ import SectionHeading from "@/components/common/SectionHeading";
 import Reveal from "@/components/common/Reveal";
 import CentreCard from "@/components/finder/CentreCard";
 import { MATERIALS } from "@/lib/recycleData";
-import { findSuitableCentres } from "@/lib/schoolPickup";
-import { School, Send, CheckCircle2, Loader2, MapPin } from "lucide-react";
+import { findSuitableCentres, PICKUP_PREFERENCE_LABELS } from "@/lib/schoolPickup";
+import { School, Send, CheckCircle2, Loader2, MapPin, Camera, X } from "lucide-react";
 
 export const SCHOOL_CONFIRMATION_MESSAGE =
   "Your response had been received. We will get back to you within 3 days.";
+
+const MATERIAL_OPTIONS = [...MATERIALS, "Others"];
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
 const initialForm = {
   schoolName: "",
@@ -18,8 +21,9 @@ const initialForm = {
   contactPhone: "",
   schoolAddress: "",
   materials: [],
+  othersSpecify: "",
   quantity: "",
-  pickupDate: "",
+  pickupPreference: "",
   notes: "",
 };
 
@@ -36,72 +40,129 @@ function validate(form) {
   if (!form.schoolAddress.trim()) errors.schoolAddress = "School address is required.";
   if (form.materials.length === 0)
     errors.materials = "Select at least one type of recyclable material.";
+  if (form.materials.includes("Others") && !form.othersSpecify.trim())
+    errors.othersSpecify = "Please specify the other material.";
   if (!form.quantity.trim()) errors.quantity = "Estimated amount is required.";
-  if (!form.pickupDate) errors.pickupDate = "Preferred pickup date is required.";
-  else {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const picked = new Date(`${form.pickupDate}T00:00:00`);
-    if (picked < today) errors.pickupDate = "Pickup date cannot be in the past.";
-  }
+  if (!form.pickupPreference) errors.pickupPreference = "Choose weekday or weekend pickup.";
   return errors;
+}
+
+async function uploadPhoto(file) {
+  const safeName = (file.name || "photo.jpg").replace(/[^a-zA-Z0-9._-]/g, "_");
+  const path = `school-pickup/${Date.now()}-${safeName}`;
+  const { error } = await supabase.storage.from("uploads").upload(path, file);
+  if (error) throw error;
+  const { data } = supabase.storage.from("uploads").getPublicUrl(path);
+  return data.publicUrl;
 }
 
 export default function SchoolRecycling() {
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
+  const [busyStep, setBusyStep] = useState("");
   const [submitError, setSubmitError] = useState("");
+  const [photoWarning, setPhotoWarning] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [matched, setMatched] = useState([]);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState("");
 
   const set = (key, value) => {
     setForm((f) => ({ ...f, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined }));
   };
 
-  const toggleMaterial = (m) =>
+  const toggleMaterial = (m) => {
     setForm((f) => ({
       ...f,
       materials: f.materials.includes(m)
         ? f.materials.filter((x) => x !== m)
         : [...f.materials, m],
     }));
+    setErrors((e) => ({ ...e, materials: undefined }));
+  };
+
+  const onPhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSubmitError("");
+    if (!file.type.startsWith("image/")) {
+      setSubmitError("Photo must be an image file (JPG/PNG).");
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      setSubmitError("Photo must be 5MB or smaller.");
+      return;
+    }
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const clearPhoto = () => {
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoFile(null);
+    setPhotoPreview("");
+  };
+
+  // Fold "Others: <free text>" into the materials list for storage/display.
+  const finalMaterials = () =>
+    form.materials.map((m) =>
+      m === "Others" ? `Others: ${form.othersSpecify.trim()}` : m
+    );
 
   const submit = async (e) => {
     e.preventDefault();
     setSubmitError("");
+    setPhotoWarning("");
     const errs = validate(form);
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
     setBusy(true);
     try {
-      // 1. Load existing centres (same data source as Finder).
+      // 1. Upload photo (optional) to the shared `uploads` bucket.
+      let photoUrl = null;
+      if (photoFile) {
+        setBusyStep("Uploading photo…");
+        try {
+          photoUrl = await uploadPhoto(photoFile);
+        } catch {
+          setPhotoWarning(
+            "Photo could not be uploaded, but your request was still submitted."
+          );
+        }
+      }
+
+      // 2. Load existing centres (same data source as Finder).
+      setBusyStep("Finding nearest centre…");
       const { data: centres } = await supabase.from("recycling_centres").select("*");
 
-      // 2. Match nearest suitable centres for the requested materials + location.
+      // 3. Match nearest suitable centres for the requested materials + location.
       const ranked = findSuitableCentres(
-        { materials: form.materials, schoolAddress: form.schoolAddress },
+        { materials: finalMaterials(), schoolAddress: form.schoolAddress },
         centres || []
       );
       setMatched(ranked);
 
       const best = ranked[0] || null;
 
-      // 3. Persist the request. `school_pickup_requests` is created by
-      //    supabase/migration_school_pickup.sql. If the table has not been
-      //    created yet (older Supabase project), keep a local copy so the
-      //    request is never lost — the confirmation below still applies.
+      // 4. Persist the request. `school_pickup_requests` is created by
+      //    supabase/migration_school_pickup.sql (+ v2 columns). If the table
+      //    has not been created yet, keep a local copy so the request is
+      //    never lost — the confirmation below still applies.
       const payload = {
         school_name: form.schoolName.trim(),
         contact_person: form.contactPerson.trim(),
         contact_email: form.contactEmail.trim(),
         contact_phone: form.contactPhone.trim(),
         school_address: form.schoolAddress.trim(),
-        materials: form.materials,
+        materials: finalMaterials(),
         quantity: form.quantity.trim(),
-        pickup_date: form.pickupDate,
+        pickup_date: null,
+        pickup_preference: form.pickupPreference,
+        photo_url: photoUrl,
         notes: form.notes.trim() || null,
         matched_centre_id: best?.centre?.id || null,
         matched_centre_name: best?.centre?.name || null,
@@ -112,7 +173,7 @@ export default function SchoolRecycling() {
           .insert(payload);
         if (insertError) throw insertError;
       } catch (dbError) {
-        // Table missing or RLS blocked — fall back to local outbox.
+        // Table/columns missing or RLS blocked — fall back to local outbox.
         const outbox = JSON.parse(localStorage.getItem("rc-school-requests") || "[]");
         outbox.push({ ...payload, created_at: new Date().toISOString(), pending_sync: true });
         localStorage.setItem("rc-school-requests", JSON.stringify(outbox));
@@ -125,6 +186,7 @@ export default function SchoolRecycling() {
       setSubmitError("Sorry, we couldn't submit that. Please check your connection and try again.");
     }
     setBusy(false);
+    setBusyStep("");
   };
 
   const field =
@@ -135,6 +197,8 @@ export default function SchoolRecycling() {
         {errors[key]}
       </p>
     ) : null;
+
+  const prefLabel = PICKUP_PREFERENCE_LABELS[form.pickupPreference] || form.pickupPreference;
 
   if (submitted) {
     const best = matched[0] || null;
@@ -154,10 +218,12 @@ export default function SchoolRecycling() {
             </p>
             <p className="mt-4 text-sm text-muted-foreground">
               Request from <strong>{form.schoolName}</strong> for{" "}
-              <strong>{form.materials.join(", ")}</strong> ({form.quantity}) — preferred pickup{" "}
-              <strong>{form.pickupDate}</strong>. We will contact {form.contactPerson} at{" "}
-              {form.contactEmail} / {form.contactPhone}.
+              <strong>{finalMaterials().join(", ")}</strong> ({form.quantity}) — {prefLabel}. We
+              will contact {form.contactPerson} at {form.contactEmail} / {form.contactPhone}.
             </p>
+            {photoWarning && (
+              <p className="mt-2 text-xs text-amber-600">{photoWarning}</p>
+            )}
             <div className="mt-6 flex flex-wrap gap-3 justify-center">
               <button
                 type="button"
@@ -165,6 +231,7 @@ export default function SchoolRecycling() {
                   setForm(initialForm);
                   setMatched([]);
                   setSubmitted(false);
+                  clearPhoto();
                 }}
                 className="h-12 px-6 rounded-full glass font-semibold hover:bg-primary/10 transition"
               >
@@ -187,7 +254,7 @@ export default function SchoolRecycling() {
                 <MapPin className="w-5 h-5 text-primary" /> Suggested pickup centre
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Based on your materials ({form.materials.join(", ")}) and school location, this
+                Based on your materials ({finalMaterials().join(", ")}) and school location, this
                 is the nearest suitable centre in our directory. This is a suggestion only — our
                 team will confirm the actual pickup arrangement when we contact you.
               </p>
@@ -314,8 +381,8 @@ export default function SchoolRecycling() {
 
           <fieldset>
             <legend className="text-sm font-semibold mb-2">Type of recyclable materials *</legend>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {MATERIALS.map((m) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {MATERIAL_OPTIONS.map((m) => (
                 <label
                   key={m}
                   className={`flex items-center gap-2 px-3 py-2.5 rounded-2xl border text-sm cursor-pointer transition-colors ${
@@ -327,7 +394,7 @@ export default function SchoolRecycling() {
                   <input
                     type="checkbox"
                     checked={form.materials.includes(m)}
-                    onChange={toggleMaterial}
+                    onChange={() => toggleMaterial(m)}
                     className="h-4 w-4 rounded accent-[#2E7D32]"
                   />
                   {m}
@@ -335,6 +402,21 @@ export default function SchoolRecycling() {
               ))}
             </div>
             {errText("materials")}
+            {form.materials.includes("Others") && (
+              <div className="mt-3">
+                <label htmlFor="s-others" className="block text-sm font-semibold mb-2">
+                  Please specify the other material *
+                </label>
+                <input
+                  id="s-others"
+                  className={field}
+                  placeholder="e.g. Tetrapak drink cartons"
+                  value={form.othersSpecify}
+                  onChange={(e) => set("othersSpecify", e.target.value)}
+                />
+                {errText("othersSpecify")}
+              </div>
+            )}
           </fieldset>
 
           <div className="grid sm:grid-cols-2 gap-4">
@@ -351,20 +433,70 @@ export default function SchoolRecycling() {
               />
               {errText("quantity")}
             </div>
-            <div>
-              <label htmlFor="s-date" className="block text-sm font-semibold mb-2">
-                Preferred pickup date *
+            <fieldset>
+              <legend className="text-sm font-semibold mb-2">Preferred pickup time *</legend>
+              <div className="space-y-2">
+                {Object.entries(PICKUP_PREFERENCE_LABELS).map(([value, label]) => (
+                  <label
+                    key={value}
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl border text-sm cursor-pointer transition-colors ${
+                      form.pickupPreference === value
+                        ? "border-primary bg-primary/5 font-semibold"
+                        : "border-border"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="pickupPreference"
+                      value={value}
+                      checked={form.pickupPreference === value}
+                      onChange={() => set("pickupPreference", value)}
+                      className="h-4 w-4 accent-[#2E7D32]"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              {errText("pickupPreference")}
+            </fieldset>
+          </div>
+
+          <div>
+            <span className="block text-sm font-semibold mb-2">
+              Photo of the bulk recyclables <span className="font-normal text-muted-foreground">(optional, max 5MB)</span>
+            </span>
+            {photoPreview ? (
+              <div className="relative inline-block">
+                <img
+                  src={photoPreview}
+                  alt="Bulk recyclables preview"
+                  className="h-40 rounded-2xl border border-border object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={clearPhoto}
+                  aria-label="Remove photo"
+                  className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-destructive text-destructive-foreground grid place-items-center shadow"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <label
+                htmlFor="s-photo"
+                className="flex items-center justify-center gap-2 h-14 rounded-2xl border border-dashed border-border text-sm font-semibold text-muted-foreground cursor-pointer hover:border-primary hover:text-primary transition"
+              >
+                <Camera className="w-5 h-5" /> Take / upload a photo
               </label>
-              <input
-                id="s-date"
-                type="date"
-                className={field}
-                value={form.pickupDate}
-                min={new Date().toISOString().slice(0, 10)}
-                onChange={(e) => set("pickupDate", e.target.value)}
-              />
-              {errText("pickupDate")}
-            </div>
+            )}
+            <input
+              id="s-photo"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="sr-only"
+              onChange={onPhotoChange}
+            />
           </div>
 
           <div>
@@ -394,7 +526,7 @@ export default function SchoolRecycling() {
           >
             {busy ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" /> Finding nearest centre…
+                <Loader2 className="w-5 h-5 animate-spin" /> {busyStep || "Submitting…"}
               </>
             ) : (
               <>

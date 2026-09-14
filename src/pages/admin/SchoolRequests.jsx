@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/api/supabaseClient";
+import { PICKUP_PREFERENCE_LABELS } from "@/lib/schoolPickup";
 import {
   Trash2,
   RefreshCw,
@@ -13,6 +14,8 @@ import {
   Reply,
   Send,
   MessageCircle,
+  Clock,
+  Image as ImageIcon,
 } from "lucide-react";
 
 const STATUSES = ["pending", "contacted", "scheduled", "completed", "cancelled"];
@@ -88,7 +91,7 @@ export default function SchoolRequests() {
     setReplyResult("");
     setReplySubject(`Recycling pickup for ${r.school_name} — RecycleConnect`);
     setReplyText(
-      `Hi ${r.contact_person},\n\nThank you for your bulk recycling request for ${(r.materials || []).join(", ")} (${r.quantity}), preferred pickup ${r.pickup_date || "—"}.\n\n` +
+      `Hi ${r.contact_person},\n\nThank you for your bulk recycling request for ${(r.materials || []).join(", ")} (${r.quantity}), preferred pickup ${PICKUP_PREFERENCE_LABELS[r.pickup_preference] || r.pickup_date || "—"}.\n\n` +
         (r.matched_centre_name
           ? `We have matched you with ${r.matched_centre_name} as the nearest suitable centre. `
           : "") +
@@ -240,7 +243,11 @@ export default function SchoolRequests() {
                 </p>
                 <p className="flex items-center gap-2 text-muted-foreground">
                   <CalendarDays className="w-4 h-4 text-primary shrink-0" />
-                  Pickup: <strong className="text-foreground">{r.pickup_date || "—"}</strong>
+                  Pickup:{" "}
+                  <strong className="text-foreground">
+                    {PICKUP_PREFERENCE_LABELS[r.pickup_preference] ||
+                      (r.pickup_date ? `Date: ${r.pickup_date}` : "—")}
+                  </strong>
                 </p>
                 <p className="flex items-start gap-2 text-muted-foreground sm:col-span-2">
                   <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
@@ -273,6 +280,29 @@ export default function SchoolRequests() {
               {r.notes && (
                 <p className="mt-3 text-sm text-muted-foreground whitespace-pre-wrap border-t border-border pt-3">
                   {r.notes}
+                </p>
+              )}
+
+              {r.photo_url ? (
+                <a
+                  href={r.photo_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-block group"
+                  title="Open full photo"
+                >
+                  <img
+                    src={r.photo_url}
+                    alt={`Bulk recyclables at ${r.school_name}`}
+                    className="h-36 rounded-2xl border border-border object-cover group-hover:opacity-90 transition"
+                  />
+                  <span className="mt-1 flex items-center gap-1 text-xs text-primary">
+                    <ImageIcon className="w-3.5 h-3.5" /> View full photo
+                  </span>
+                </a>
+              ) : (
+                <p className="mt-3 text-xs text-muted-foreground flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5" /> No photo attached
                 </p>
               )}
 

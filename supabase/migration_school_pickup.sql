@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS school_pickup_requests (
   materials TEXT[] DEFAULT '{}',
   quantity TEXT NOT NULL DEFAULT '',
   pickup_date DATE,
+  pickup_preference TEXT,
+  photo_url TEXT,
   notes TEXT,
   matched_centre_id UUID,
   matched_centre_name TEXT,
