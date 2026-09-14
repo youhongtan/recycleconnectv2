@@ -2,13 +2,14 @@ import React from "react";
 import { Outlet, Link, NavLink } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { useI18n } from "@/lib/i18n";
-import { Leaf, LayoutDashboard, Users, MapPin, QrCode, Mail, UserCheck, ArrowLeft, ShieldAlert, Loader2 } from "lucide-react";
+import { Leaf, LayoutDashboard, Users, MapPin, QrCode, Mail, UserCheck, ArrowLeft, ShieldAlert, Loader2, School } from "lucide-react";
 
 const NAV = [
   { to: "/admin", key: "dashboard", icon: LayoutDashboard, end: true },
   { to: "/admin/users", key: "userMgmt", icon: Users },
   { to: "/admin/centres", key: "centreMgmt", icon: MapPin },
   { to: "/admin/messages", key: "messages", icon: Mail },
+  { to: "/admin/school-requests", key: "schoolRequests", icon: School },
   { to: "/admin/qr", key: "qrCodes", icon: QrCode },
   { to: "/admin/check-in", key: "staffCheckIn", icon: UserCheck },
 ];

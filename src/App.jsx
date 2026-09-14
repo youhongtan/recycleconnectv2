@@ -31,6 +31,7 @@ import UserManagement from '@/pages/admin/UserManagement';
 import CentreManagement from '@/pages/admin/CentreManagement';
 import QRManagement from '@/pages/admin/QRManagement';
 import Messages from '@/pages/admin/Messages';
+import SchoolRequests from '@/pages/admin/SchoolRequests';
 import StaffCheckIn from '@/pages/admin/StaffCheckIn';
 
 const AUTH_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password'];
@@ -83,6 +84,7 @@ const AuthenticatedApp = () => {
         <Route path="/admin/qr" element={<QRManagement />} />
         <Route path="/admin/check-in" element={<StaffCheckIn />} />
         <Route path="/admin/messages" element={<Messages />} />
+        <Route path="/admin/school-requests" element={<SchoolRequests />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
