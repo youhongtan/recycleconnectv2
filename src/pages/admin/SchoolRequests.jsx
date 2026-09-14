@@ -10,6 +10,9 @@ import {
   MapPin,
   CalendarDays,
   Package,
+  Reply,
+  Send,
+  MessageCircle,
 } from "lucide-react";
 
 const STATUSES = ["pending", "contacted", "scheduled", "completed", "cancelled"];
@@ -29,6 +32,11 @@ export default function SchoolRequests() {
   const [missingTable, setMissingTable] = useState(false);
   const [filter, setFilter] = useState("all");
   const [updating, setUpdating] = useState(null);
+  const [replyTo, setReplyTo] = useState(null);
+  const [replySubject, setReplySubject] = useState("");
+  const [replyText, setReplyText] = useState("");
+  const [replyBusy, setReplyBusy] = useState(false);
+  const [replyResult, setReplyResult] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -73,6 +81,63 @@ export default function SchoolRequests() {
     if (!window.confirm("Delete this school pickup request?")) return;
     await supabase.from("school_pickup_requests").delete().eq("id", id);
     setRequests((rs) => rs.filter((r) => r.id !== id));
+  };
+
+  const openReply = (r) => {
+    setReplyTo(r.id);
+    setReplyResult("");
+    setReplySubject(`Recycling pickup for ${r.school_name} — RecycleConnect`);
+    setReplyText(
+      `Hi ${r.contact_person},\n\nThank you for your bulk recycling request for ${(r.materials || []).join(", ")} (${r.quantity}), preferred pickup ${r.pickup_date || "—"}.\n\n` +
+        (r.matched_centre_name
+          ? `We have matched you with ${r.matched_centre_name} as the nearest suitable centre. `
+          : "") +
+        `Please reply to confirm a pickup time, or tell us a better date.\n\nYour response had been received. We will get back to you within 3 days.\n\n— RecycleConnect team`
+    );
+  };
+
+  const sendReply = async (r) => {
+    setReplyBusy(true);
+    setReplyResult("");
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const res = await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "reply",
+          to: r.contact_email,
+          subject: replySubject,
+          text: replyText,
+          accessToken: session?.access_token,
+        }),
+      });
+      const data = await res.json();
+      if (data.notified) {
+        setReplyResult("sent");
+        setReplyTo(null);
+        setRequests((rs) =>
+          rs.map((x) => (x.id === r.id ? { ...x, status: "contacted" } : x))
+        );
+        await supabase
+          .from("school_pickup_requests")
+          .update({ status: "contacted" })
+          .eq("id", r.id);
+      } else {
+        setReplyResult(`fail: ${data.error || data.reason || "could not send"}`);
+      }
+    } catch {
+      setReplyResult("fail: network error");
+    }
+    setReplyBusy(false);
+  };
+
+  const waLink = (r) => {
+    const digits = (r.contact_phone || "").replace(/\D/g, "");
+    const msg = `Hi ${r.contact_person}, this is RecycleConnect about your bulk recycling pickup request for ${r.school_name}.`;
+    return `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
   };
 
   return (
@@ -230,6 +295,82 @@ export default function SchoolRequests() {
                 </select>
                 {updating === r.id && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
               </div>
+
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => (replyTo === r.id ? setReplyTo(null) : openReply(r))}
+                  className="h-10 px-4 rounded-full bg-primary/10 text-primary text-sm font-semibold inline-flex items-center gap-2 hover:bg-primary/20 transition"
+                >
+                  <Reply className="w-4 h-4" /> Reply by email
+                </button>
+                <a
+                  href={waLink(r)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="h-10 px-4 rounded-full glass text-sm font-semibold inline-flex items-center gap-2 hover:bg-primary/10 transition"
+                  title="Chat on WhatsApp (free, from your WhatsApp account)"
+                >
+                  <MessageCircle className="w-4 h-4" /> WhatsApp
+                </a>
+                <a
+                  href={`mailto:${r.contact_email}?subject=${encodeURIComponent(`Recycling pickup for ${r.school_name} — RecycleConnect`)}`}
+                  className="h-10 px-4 rounded-full glass text-sm font-semibold inline-flex items-center gap-2 hover:bg-primary/10 transition"
+                  title="Open in your mail app (free, from your own email)"
+                >
+                  <Mail className="w-4 h-4" /> Mail app
+                </a>
+              </div>
+
+              {replyTo === r.id && (
+                <div className="mt-3 p-4 rounded-2xl border border-border bg-background space-y-3">
+                  <label className="block text-xs font-semibold text-muted-foreground" htmlFor={`rs-${r.id}`}>
+                    Subject
+                  </label>
+                  <input
+                    id={`rs-${r.id}`}
+                    value={replySubject}
+                    onChange={(e) => setReplySubject(e.target.value)}
+                    className="w-full h-11 px-4 rounded-2xl bg-background border border-border focus:border-primary text-sm"
+                  />
+                  <label className="block text-xs font-semibold text-muted-foreground" htmlFor={`rt-${r.id}`}>
+                    Message to {r.contact_email}
+                  </label>
+                  <textarea
+                    id={`rt-${r.id}`}
+                    rows={7}
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    className="w-full p-4 rounded-2xl bg-background border border-border focus:border-primary text-sm"
+                  />
+                  {replyResult === "sent" && (
+                    <p className="text-sm text-primary">Reply sent — status set to contacted.</p>
+                  )}
+                  {replyResult.startsWith("fail") && (
+                    <p className="text-sm text-destructive">
+                      {replyResult}. {replyResult.includes("RESEND_API_KEY") && "Add RESEND_API_KEY in Vercel env vars, or use WhatsApp / Mail app instead (both free)."}
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={replyBusy || !replySubject.trim() || !replyText.trim()}
+                      onClick={() => sendReply(r)}
+                      className="h-11 px-5 rounded-full bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center gap-2 hover:brightness-110 transition disabled:opacity-60"
+                    >
+                      {replyBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      {replyBusy ? "Sending…" : "Send reply"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReplyTo(null)}
+                      className="h-11 px-5 rounded-full glass text-sm font-semibold hover:bg-primary/10 transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </article>
           ))}
         </div>
