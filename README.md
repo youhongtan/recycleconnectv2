@@ -1,6 +1,10 @@
-# RecycleConnect
+# RecycleConnect V2
 
 A recycling education and gamification platform built for Malaysia.
+
+V2 adds: eco-friendly school reward redemption, School Bulk Recycling pickup
+requests (`/schools`) with nearest-centre matching, and a new
+`school_pickup_requests` table (see `supabase/migration_school_pickup.sql`).
 
 ## Stack
 

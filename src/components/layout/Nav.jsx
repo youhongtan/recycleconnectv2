@@ -19,6 +19,7 @@ const MORE = [
   { to: "/challenges", key: "challenges" },
   { to: "/leaderboard", key: "leaderboard" },
   { to: "/profile", key: "profile" },
+  { to: "/schools", key: "schools" },
   { to: "/about", key: "about" },
   { to: "/contact", key: "contact" },
 ];
