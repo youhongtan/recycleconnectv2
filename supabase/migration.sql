@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS user_roles (
 
 -- Storage: ensure uploads bucket exists (run separately if bucket already created)
 INSERT INTO storage.buckets (id, name, public, avif_autodetection, file_size_limit, allowed_mime_types)
-VALUES ('uploads', 'uploads', TRUE, FALSE, 10485760, ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
+VALUES ('uploads', 'uploads', TRUE, FALSE, 15728640, ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/heic', 'image/heif'])
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage RLS for uploads bucket

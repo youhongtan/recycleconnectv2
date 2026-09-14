@@ -50,7 +50,9 @@ export default function SchoolRequests() {
       .select("*")
       .order("created_at", { ascending: false });
     if (err) {
-      if (/does not exist|42P01|school_pickup_requests/i.test(err.message)) {
+      // Only "table doesn't exist" means setup is missing — surface every
+      // other error (e.g. RLS/permission) as-is so it can actually be fixed.
+      if (err.code === "42P01" || /relation .* does not exist/i.test(err.message || "")) {
         setMissingTable(true);
       } else {
         setError(err.message);

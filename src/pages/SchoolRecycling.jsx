@@ -12,7 +12,7 @@ export const SCHOOL_CONFIRMATION_MESSAGE =
   "Your response had been received. We will get back to you within 3 days.";
 
 const MATERIAL_OPTIONS = [...MATERIALS, "Others"];
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 
 const initialForm = {
   schoolName: "",
@@ -92,7 +92,7 @@ export default function SchoolRecycling() {
       return;
     }
     if (file.size > MAX_PHOTO_BYTES) {
-      setSubmitError("Photo must be 5MB or smaller.");
+      setSubmitError("Photo must be 10MB or smaller.");
       return;
     }
     if (photoPreview) URL.revokeObjectURL(photoPreview);
@@ -128,9 +128,9 @@ export default function SchoolRecycling() {
         setBusyStep("Uploading photo…");
         try {
           photoUrl = await uploadPhoto(photoFile);
-        } catch {
+        } catch (photoErr) {
           setPhotoWarning(
-            "Photo could not be uploaded, but your request was still submitted."
+            `Photo could not be uploaded (${photoErr?.message || "storage error"}), but your request was still submitted.`
           );
         }
       }
@@ -463,7 +463,7 @@ export default function SchoolRecycling() {
 
           <div>
             <span className="block text-sm font-semibold mb-2">
-              Photo of the bulk recyclables <span className="font-normal text-muted-foreground">(optional, max 5MB)</span>
+              Photo of the bulk recyclables <span className="font-normal text-muted-foreground">(optional, max 10MB)</span>
             </span>
             {photoPreview ? (
               <div className="relative inline-block">

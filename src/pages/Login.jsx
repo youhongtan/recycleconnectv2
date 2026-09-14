@@ -31,7 +31,13 @@ export default function Login() {
   };
 
   const handleGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
+    // Return to THIS site after Google auth (old, V2, or localhost) instead
+    // of Supabase's default Site URL. The origin must be allowlisted under
+    // Auth → URL Configuration → Redirect URLs.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
     if (error) setError(error.message);
   };
 

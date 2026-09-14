@@ -79,7 +79,11 @@ export default function Register() {
   };
 
   const handleGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
+    // Same as Login: come back to whichever site started the signup.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
     if (error) setError(error.message);
   };
 
