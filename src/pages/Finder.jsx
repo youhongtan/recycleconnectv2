@@ -7,8 +7,10 @@ import MaterialFilters from "@/components/finder/MaterialFilters";
 import CentreCard from "@/components/finder/CentreCard";
 import CentreMap from "@/components/finder/CentreMap";
 import RecommendForm from "@/components/finder/RecommendForm";
+import { useI18n } from "@/lib/i18n";
 
 export default function Finder() {
+  const { t } = useI18n();
   const [centres, setCentres] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -34,9 +36,9 @@ export default function Finder() {
   return (
     <div className="max-w-6xl mx-auto px-6 pb-10">
       <SectionHeading
-        eyebrow="Centre Finder"
-        title="Recycling centres near you"
-        subtitle="Search across Malaysia, filter by what you're dropping off, then navigate in one tap."
+        eyebrow={t("fdEyebrow")}
+        title={t("fdTitle")}
+        subtitle={t("fdSub")}
       />
 
       <Reveal delay={0.05}>
@@ -48,7 +50,7 @@ export default function Finder() {
               id="centre-search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by name, area or city…"
+              placeholder={t("fdSearchPh")}
               className="w-full h-14 pl-14 pr-5 rounded-full bg-background border border-border focus:border-primary"
             />
           </div>
@@ -60,7 +62,7 @@ export default function Finder() {
               rel="noreferrer"
               className="h-11 px-5 rounded-full border border-primary/40 text-sm font-semibold inline-flex items-center gap-2 hover:bg-primary/5 transition"
             >
-              <MapIcon className="w-4 h-4" /> Find more on Google Maps
+              <MapIcon className="w-4 h-4" /> {t("fdMapsBtn")}
             </a>
           </div>
         </div>
@@ -74,7 +76,7 @@ export default function Finder() {
 
       {loading ? (
         <div className="mt-10 flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading centres…
+          <Loader2 className="w-4 h-4 animate-spin" /> {t("fdLoading")}
         </div>
       ) : (
         <div className="mt-8 grid md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -84,16 +86,16 @@ export default function Finder() {
             </Reveal>
           ))}
           {filtered.length === 0 && (
-            <p className="text-muted-foreground">No centres match those filters yet — try removing one.</p>
+            <p className="text-muted-foreground">{t("fdNoMatch")}</p>
           )}
         </div>
       )}
 
       <section id="recommend" className="mt-24 scroll-mt-32">
         <SectionHeading
-          eyebrow="Smart Recommendation"
-          title="Find your perfect drop-off"
-          subtitle="Answer a few questions and we'll rank the best centres for you."
+          eyebrow={t("fdRecEyebrow")}
+          title={t("fdRecTitle")}
+          subtitle={t("fdRecSub")}
         />
         <div className="mt-12">
           <RecommendForm centres={centres} />

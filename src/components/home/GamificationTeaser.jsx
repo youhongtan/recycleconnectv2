@@ -3,29 +3,31 @@ import { Link } from "react-router-dom";
 import { Trophy, Flame, Target, Gift } from "lucide-react";
 import Reveal from "@/components/common/Reveal";
 import SectionHeading from "@/components/common/SectionHeading";
+import { useI18n } from "@/lib/i18n";
 
 const ITEMS = [
-  { icon: Target, title: "Daily Challenges", body: "Small tasks like rinsing and sorting five items." },
-  { icon: Flame, title: "Streaks & XP", body: "Recycle every day to keep your streak alive and level up." },
-  { icon: Trophy, title: "Leaderboards", body: "See how your school, street or state ranks nationwide." },
-  { icon: Gift, title: "Eco Rewards", body: "Coming soon: scan a QR after recycling and redeem vouchers." },
+  { icon: Target, titleKey: "gamChTitle", bodyKey: "gamChBody" },
+  { icon: Flame, titleKey: "gamStTitle", bodyKey: "gamStBody" },
+  { icon: Trophy, titleKey: "gamLbTitle", bodyKey: "gamLbBody" },
+  { icon: Gift, titleKey: "gamRwTitle", bodyKey: "gamRwBody" },
 ];
 
 export default function GamificationTeaser() {
+  const { t } = useI18n();
   return (
     <section className="max-w-6xl mx-auto px-6 py-24">
       <SectionHeading
-        eyebrow="Gamification"
-        title="Recycling that actually rewards you"
-        subtitle="Progress bars, badges and missions turn a chore into a daily habit."
+        eyebrow={t("gamEyebrow")}
+        title={t("gamTitle")}
+        subtitle={t("gamSubtitle")}
       />
       <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {ITEMS.map((it, i) => (
-          <Reveal key={it.title} delay={i * 0.08}>
+          <Reveal key={it.titleKey} delay={i * 0.08}>
             <div className="h-full glass orbital soft-shadow p-7 hover:-translate-y-1 transition-transform duration-500">
               <it.icon className="w-6 h-6 text-accent" aria-hidden="true" />
-              <h3 className="mt-4 text-lg font-semibold">{it.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{it.body}</p>
+              <h3 className="mt-4 text-lg font-semibold">{t(it.titleKey)}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{t(it.bodyKey)}</p>
             </div>
           </Reveal>
         ))}
@@ -36,7 +38,7 @@ export default function GamificationTeaser() {
             to="/profile"
             className="inline-flex h-14 px-8 rounded-full bg-primary text-primary-foreground font-semibold items-center soft-shadow hover:brightness-110 active:scale-[0.98] transition"
           >
-            View my eco profile
+            {t("gamCta")}
           </Link>
         </div>
       </Reveal>

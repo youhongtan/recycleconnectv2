@@ -1,17 +1,17 @@
 import React from "react";
 import Hero from "@/components/home/Hero";
-import StatsBand from "@/components/home/StatsBand";
 import FeatureCards from "@/components/home/FeatureCards";
 import GamificationTeaser from "@/components/home/GamificationTeaser";
 import Reveal from "@/components/common/Reveal";
 import { Image } from "@/components/ui/image";
 import { Link } from "react-router-dom";
+import { useI18n } from "@/lib/i18n";
 
 export default function Home() {
+  const { t } = useI18n();
   return (
     <div>
       <Hero />
-      <StatsBand />
       <FeatureCards />
 
       <section className="max-w-6xl mx-auto px-6 py-8">
@@ -23,16 +23,15 @@ export default function Home() {
               className="w-full h-72 lg:h-full"
             />
             <div className="p-10">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">Built for Malaysia</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">{t("builtEyebrow")}</p>
               <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight leading-tight">
-                From mall drop-offs to kampung collection points
+                {t("builtTitle")}
               </h2>
               <p className="mt-4 text-muted-foreground">
-                RecycleConnect maps real Malaysian recycling infrastructure — shopping-centre bins at IPC and 1 Utama,
-                council centres, scrap dealers and cooking-oil collectors — so the right bin is always minutes away.
+                {t("builtBody")}
               </p>
               <Link to="/finder" className="mt-8 inline-flex h-14 px-8 rounded-full glass font-semibold items-center hover:bg-primary/10 transition">
-                Explore the map
+                {t("builtCta")}
               </Link>
             </div>
           </div>

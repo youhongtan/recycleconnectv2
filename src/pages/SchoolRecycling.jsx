@@ -5,7 +5,8 @@ import SectionHeading from "@/components/common/SectionHeading";
 import Reveal from "@/components/common/Reveal";
 import CentreCard from "@/components/finder/CentreCard";
 import { MATERIALS } from "@/lib/recycleData";
-import { findSuitableCentres, PICKUP_PREFERENCE_LABELS } from "@/lib/schoolPickup";
+import { findSuitableCentres } from "@/lib/schoolPickup";
+import { useI18n } from "@/lib/i18n";
 import { School, Send, CheckCircle2, Loader2, MapPin, Camera, X } from "lucide-react";
 
 export const SCHOOL_CONFIRMATION_MESSAGE =
@@ -27,23 +28,23 @@ const initialForm = {
   notes: "",
 };
 
-function validate(form) {
+function validate(form, t) {
   const errors = {};
-  if (!form.schoolName.trim()) errors.schoolName = "School name is required.";
-  if (!form.contactPerson.trim()) errors.contactPerson = "Contact person is required.";
-  if (!form.contactEmail.trim()) errors.contactEmail = "Contact email is required.";
+  if (!form.schoolName.trim()) errors.schoolName = t("eSchool");
+  if (!form.contactPerson.trim()) errors.contactPerson = t("ePerson");
+  if (!form.contactEmail.trim()) errors.contactEmail = t("eEmail");
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contactEmail.trim()))
-    errors.contactEmail = "Enter a valid email address.";
-  if (!form.contactPhone.trim()) errors.contactPhone = "Contact phone number is required.";
+    errors.contactEmail = t("eEmailValid");
+  if (!form.contactPhone.trim()) errors.contactPhone = t("ePhone");
   else if ((form.contactPhone.replace(/\D/g, "") || "").length < 7)
-    errors.contactPhone = "Enter a valid phone number.";
-  if (!form.schoolAddress.trim()) errors.schoolAddress = "School address is required.";
+    errors.contactPhone = t("ePhoneValid");
+  if (!form.schoolAddress.trim()) errors.schoolAddress = t("eAddress");
   if (form.materials.length === 0)
-    errors.materials = "Select at least one type of recyclable material.";
+    errors.materials = t("eMaterials");
   if (form.materials.includes("Others") && !form.othersSpecify.trim())
-    errors.othersSpecify = "Please specify the other material.";
-  if (!form.quantity.trim()) errors.quantity = "Estimated amount is required.";
-  if (!form.pickupPreference) errors.pickupPreference = "Choose weekday or weekend pickup.";
+    errors.othersSpecify = t("eOthers");
+  if (!form.quantity.trim()) errors.quantity = t("eQty");
+  if (!form.pickupPreference) errors.pickupPreference = t("ePref");
   return errors;
 }
 
@@ -57,6 +58,7 @@ async function uploadPhoto(file) {
 }
 
 export default function SchoolRecycling() {
+  const { t } = useI18n();
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
@@ -88,11 +90,11 @@ export default function SchoolRecycling() {
     if (!file) return;
     setSubmitError("");
     if (!file.type.startsWith("image/")) {
-      setSubmitError("Photo must be an image file (JPG/PNG).");
+      setSubmitError(t("photoTypeErr"));
       return;
     }
     if (file.size > MAX_PHOTO_BYTES) {
-      setSubmitError("Photo must be 10MB or smaller.");
+      setSubmitError(t("photoSizeErr"));
       return;
     }
     if (photoPreview) URL.revokeObjectURL(photoPreview);
@@ -116,7 +118,7 @@ export default function SchoolRecycling() {
     e.preventDefault();
     setSubmitError("");
     setPhotoWarning("");
-    const errs = validate(form);
+    const errs = validate(form, t);
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
@@ -125,7 +127,7 @@ export default function SchoolRecycling() {
       // 1. Upload photo (optional) to the shared `uploads` bucket.
       let photoUrl = null;
       if (photoFile) {
-        setBusyStep("Uploading photo…");
+        setBusyStep("upload");
         try {
           photoUrl = await uploadPhoto(photoFile);
         } catch (photoErr) {
@@ -136,7 +138,7 @@ export default function SchoolRecycling() {
       }
 
       // 2. Load existing centres (same data source as Finder).
-      setBusyStep("Finding nearest centre…");
+      setBusyStep("match");
       const { data: centres } = await supabase.from("recycling_centres").select("*");
 
       // 3. Match nearest suitable centres for the requested materials + location.
@@ -183,7 +185,7 @@ export default function SchoolRecycling() {
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
-      setSubmitError("Sorry, we couldn't submit that. Please check your connection and try again.");
+      setSubmitError(t("submitFail"));
     }
     setBusy(false);
     setBusyStep("");
@@ -198,7 +200,12 @@ export default function SchoolRecycling() {
       </p>
     ) : null;
 
-  const prefLabel = PICKUP_PREFERENCE_LABELS[form.pickupPreference] || form.pickupPreference;
+  const prefLabel =
+    form.pickupPreference === "weekday"
+      ? t("prefWeekday")
+      : form.pickupPreference === "weekend"
+        ? t("prefWeekend")
+        : form.pickupPreference;
 
   if (submitted) {
     const best = matched[0] || null;
@@ -209,7 +216,7 @@ export default function SchoolRecycling() {
             <span className="h-16 w-16 rounded-full bg-primary/12 grid place-items-center mx-auto">
               <CheckCircle2 className="w-8 h-8 text-primary" />
             </span>
-            <h1 className="mt-5 text-3xl font-bold tracking-tight">Request received</h1>
+            <h1 className="mt-5 text-3xl font-bold tracking-tight">{t("reqReceived")}</h1>
             <p
               role="status"
               className="mt-4 text-lg font-semibold text-primary bg-primary/8 rounded-2xl px-6 py-4"
@@ -217,9 +224,9 @@ export default function SchoolRecycling() {
               {SCHOOL_CONFIRMATION_MESSAGE}
             </p>
             <p className="mt-4 text-sm text-muted-foreground">
-              Request from <strong>{form.schoolName}</strong> for{" "}
-              <strong>{finalMaterials().join(", ")}</strong> ({form.quantity}) — {prefLabel}. We
-              will contact {form.contactPerson} at {form.contactEmail} / {form.contactPhone}.
+              {t("reqSumA")} <strong>{form.schoolName}</strong> —{" "}
+              <strong>{finalMaterials().join(", ")}</strong> ({form.quantity}), {prefLabel}.{" "}
+              {t("reqSumContact")} {form.contactPerson} ({form.contactEmail} / {form.contactPhone}).
             </p>
             {photoWarning && (
               <p className="mt-2 text-xs text-amber-600">{photoWarning}</p>
@@ -235,13 +242,13 @@ export default function SchoolRecycling() {
                 }}
                 className="h-12 px-6 rounded-full glass font-semibold hover:bg-primary/10 transition"
               >
-                Submit another request
+                {t("submitAnother")}
               </button>
               <Link
                 to="/finder"
                 className="h-12 px-6 rounded-full bg-primary text-primary-foreground font-semibold inline-flex items-center hover:brightness-110 transition"
               >
-                Browse all centres
+                {t("browseCentres")}
               </Link>
             </div>
           </div>
@@ -251,7 +258,7 @@ export default function SchoolRecycling() {
           <Reveal delay={0.1}>
             <div className="mt-8">
               <h2 className="text-xl font-bold flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-primary" /> Suggested pickup centre
+                <MapPin className="w-5 h-5 text-primary" /> {t("suggestedT")}
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
                 Based on your materials ({finalMaterials().join(", ")}) and school location, this
@@ -290,9 +297,9 @@ export default function SchoolRecycling() {
   return (
     <div className="max-w-3xl mx-auto px-6 pb-10">
       <SectionHeading
-        eyebrow="For Schools"
-        title="School Bulk Recycling"
-        subtitle="Large amount of recyclables at your school? Send us a pickup request and we will match you with the nearest suitable recycling centre."
+        eyebrow={t("schEyebrow")}
+        title={t("schTitle")}
+        subtitle={t("schSub")}
       />
 
       <Reveal delay={0.05}>
@@ -301,13 +308,12 @@ export default function SchoolRecycling() {
             <span className="h-10 w-10 rounded-2xl bg-primary/12 grid place-items-center shrink-0">
               <School className="w-5 h-5 text-primary" />
             </span>
-            Schools can request a bulk pickup when they have a large amount of recyclable
-            materials and need a recycling centre to collect them.
+            {t("schIntro")}
           </div>
 
           <div>
             <label htmlFor="s-school" className="block text-sm font-semibold mb-2">
-              School name *
+              {t("fSchool")} *
             </label>
             <input
               id="s-school"
@@ -322,7 +328,7 @@ export default function SchoolRecycling() {
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="s-person" className="block text-sm font-semibold mb-2">
-                Contact person *
+                {t("fPerson")} *
               </label>
               <input
                 id="s-person"
@@ -335,7 +341,7 @@ export default function SchoolRecycling() {
             </div>
             <div>
               <label htmlFor="s-phone" className="block text-sm font-semibold mb-2">
-                Contact phone number *
+                {t("fPhone")} *
               </label>
               <input
                 id="s-phone"
@@ -351,7 +357,7 @@ export default function SchoolRecycling() {
 
           <div>
             <label htmlFor="s-email" className="block text-sm font-semibold mb-2">
-              Contact email *
+              {t("fEmail")} *
             </label>
             <input
               id="s-email"
@@ -366,7 +372,7 @@ export default function SchoolRecycling() {
 
           <div>
             <label htmlFor="s-address" className="block text-sm font-semibold mb-2">
-              School address *
+              {t("fAddress")} *
             </label>
             <textarea
               id="s-address"
@@ -380,7 +386,7 @@ export default function SchoolRecycling() {
           </div>
 
           <fieldset>
-            <legend className="text-sm font-semibold mb-2">Type of recyclable materials *</legend>
+            <legend className="text-sm font-semibold mb-2">{t("fMaterials")} *</legend>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {MATERIAL_OPTIONS.map((m) => (
                 <label
@@ -405,7 +411,7 @@ export default function SchoolRecycling() {
             {form.materials.includes("Others") && (
               <div className="mt-3">
                 <label htmlFor="s-others" className="block text-sm font-semibold mb-2">
-                  Please specify the other material *
+                  {t("fOthers")} *
                 </label>
                 <input
                   id="s-others"
@@ -422,7 +428,7 @@ export default function SchoolRecycling() {
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="s-qty" className="block text-sm font-semibold mb-2">
-                Estimated amount / quantity *
+                {t("fQty")} *
               </label>
               <input
                 id="s-qty"
@@ -434,9 +440,12 @@ export default function SchoolRecycling() {
               {errText("quantity")}
             </div>
             <fieldset>
-              <legend className="text-sm font-semibold mb-2">Preferred pickup time *</legend>
+              <legend className="text-sm font-semibold mb-2">{t("fPickup")} *</legend>
               <div className="space-y-2">
-                {Object.entries(PICKUP_PREFERENCE_LABELS).map(([value, label]) => (
+                {[
+                  { value: "weekday", label: t("prefWeekday") },
+                  { value: "weekend", label: t("prefWeekend") },
+                ].map(({ value, label }) => (
                   <label
                     key={value}
                     className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl border text-sm cursor-pointer transition-colors ${
@@ -463,7 +472,7 @@ export default function SchoolRecycling() {
 
           <div>
             <span className="block text-sm font-semibold mb-2">
-              Photo of the bulk recyclables <span className="font-normal text-muted-foreground">(optional, max 10MB)</span>
+              {t("fPhoto")} <span className="font-normal text-muted-foreground">{t("fOptional")}</span>
             </span>
             {photoPreview ? (
               <div className="relative inline-block">
@@ -501,7 +510,7 @@ export default function SchoolRecycling() {
 
           <div>
             <label htmlFor="s-notes" className="block text-sm font-semibold mb-2">
-              Additional notes
+              {t("fNotes")}
             </label>
             <textarea
               id="s-notes"
@@ -526,17 +535,17 @@ export default function SchoolRecycling() {
           >
             {busy ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" /> {busyStep || "Submitting…"}
+                <Loader2 className="w-5 h-5 animate-spin" />{" "}
+                {busyStep === "upload" ? t("uploadingBtn") : busyStep === "match" ? t("matchingBtn") : t("submittingBtn")}
               </>
             ) : (
               <>
-                <Send className="w-4 h-4" /> Submit pickup request
+                <Send className="w-4 h-4" /> {t("submitBtn")}
               </>
             )}
           </button>
           <p className="text-xs text-muted-foreground text-center">
-            No centre is auto-booked — we suggest the nearest suitable centre and confirm with
-            you by email/phone.
+            {t("noAutoBook")}
           </p>
         </form>
       </Reveal>

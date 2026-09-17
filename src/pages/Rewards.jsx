@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/api/supabaseClient";
 import { getOrCreateProfile } from "@/lib/ecoProfile";
+import { useI18n } from "@/lib/i18n";
 import {
   Dialog,
   DialogContent,
@@ -107,6 +108,7 @@ function iconFor(reward) {
 }
 
 export default function Rewards() {
+  const { t } = useI18n();
   const [rewards, setRewards] = useState([]);
   const [profile, setProfile] = useState(null);
   const [user, setUser] = useState(null);
@@ -137,7 +139,7 @@ export default function Rewards() {
         setProfile(p);
       } catch {
         setRewards([...FALLBACK_ECO_REWARDS]);
-        setError("Could not load the latest rewards — showing eco staples.");
+        setError(t("rwError"));
       }
       setLoading(false);
     })();
@@ -152,13 +154,14 @@ export default function Rewards() {
     () => (category === "All" ? rewards : rewards.filter((r) => r.category === category)),
     [rewards, category]
   );
+  const catLabel = (c) => (c === "All" ? t("allCat") : c);
 
   const balance = profile?.eco_points || 0;
 
   const redeem = async (reward) => {
     setError("");
     if (!user || !profile) {
-      setError("Please sign in to redeem rewards.");
+      setError(t("rwLoginNeeded"));
       return;
     }
     if (balance < reward.eco_points_cost) return;
@@ -190,7 +193,7 @@ export default function Rewards() {
       setConfirmReward(null);
       setSuccess({ reward, newBalance });
     } catch {
-      setError("Redemption failed. Please check your connection and try again.");
+      setError(t("rwRedeemFail"));
     }
     setRedeeming(null);
   };
@@ -198,7 +201,7 @@ export default function Rewards() {
   if (loading)
     return (
       <div className="max-w-4xl mx-auto px-6 py-20 flex items-center gap-2 text-muted-foreground">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+        <Loader2 className="w-4 h-4 animate-spin" /> {t("loadingDots")}
       </div>
     );
 
@@ -206,10 +209,9 @@ export default function Rewards() {
     <div className="max-w-5xl mx-auto px-6 pb-10 space-y-8">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-4xl font-bold">Eco Rewards</h1>
+          <h1 className="text-4xl font-bold">{t("rewardsTitle")}</h1>
           <p className="text-muted-foreground mt-1">
-            Redeem your Eco Points for realistic eco-friendly items — recycled paper, notebooks,
-            reusable bags and other sustainable school essentials.
+            {t("rewardsSub")}
           </p>
         </div>
         <div className="glass orbital px-6 py-4 flex items-center gap-3">
@@ -218,7 +220,7 @@ export default function Rewards() {
             <p className="text-2xl font-bold" data-testid="eco-balance">
               {balance}
             </p>
-            <p className="text-xs text-muted-foreground">Eco Points</p>
+            <p className="text-xs text-muted-foreground">{t("ecoPointsUnit")}</p>
           </div>
         </div>
       </div>
@@ -226,13 +228,13 @@ export default function Rewards() {
       {!user && (
         <div className="glass orbital p-5 flex flex-wrap items-center gap-3 justify-between">
           <p className="text-sm text-muted-foreground">
-            Sign in to earn Eco Points by recycling, then redeem them here.
+            {t("rwSignIn")}
           </p>
           <Link
             to="/login"
             className="h-11 px-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center hover:brightness-110 transition"
           >
-            Sign in
+            {t("signInBtn")}
           </Link>
         </div>
       )}
@@ -250,7 +252,7 @@ export default function Rewards() {
                   : "glass hover:bg-primary/10"
               }`}
             >
-              {c}
+              {catLabel(c)}
             </button>
           ))}
         </div>
@@ -271,11 +273,11 @@ export default function Rewards() {
             <CheckCircle2 className="w-6 h-6 text-primary" />
           </span>
           <div className="flex-1">
-            <p className="font-bold text-lg">Redemption successful!</p>
+            <p className="font-bold text-lg">{t("redeemSuccessT")}</p>
             <p className="text-sm text-muted-foreground mt-1">
-              You redeemed <strong>{success.reward.name}</strong> for{" "}
-              <strong>{success.reward.eco_points_cost} Eco Points</strong>. Remaining balance:{" "}
-              <strong>{success.newBalance}</strong>. Show this confirmation at collection.
+              {t("rwYouRedeemed")} <strong>{success.reward.name}</strong> {t("rwFor")}{" "}
+              <strong>{success.reward.eco_points_cost} {t("ecoPointsUnit")}</strong>. {t("rwBalance")}:{" "}
+              <strong>{success.newBalance}</strong>. {t("rwShowAt")}
             </p>
           </div>
           <button
@@ -283,7 +285,7 @@ export default function Rewards() {
             onClick={() => setSuccess(null)}
             className="h-10 px-5 rounded-full glass text-sm font-semibold hover:bg-primary/10 transition shrink-0"
           >
-            Dismiss
+            {t("dismissBtn")}
           </button>
         </div>
       )}
@@ -299,7 +301,7 @@ export default function Rewards() {
                 <Icon className="w-12 h-12 text-primary" aria-hidden="true" />
                 {r.category === "Stationery" && (
                   <span className="absolute top-3 left-3 text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full bg-background/80 text-primary inline-flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> School pick
+                    <Sparkles className="w-3 h-3" /> {t("schoolPick")}
                   </span>
                 )}
               </div>
@@ -311,19 +313,19 @@ export default function Rewards() {
                 <p className="text-sm text-muted-foreground mt-1 flex-1">{r.description}</p>
                 <div className="flex items-center gap-1 mt-3 mb-3">
                   <Coins className="w-4 h-4 text-primary" />
-                  <span className="font-bold">{r.eco_points_cost} points required</span>
+                  <span className="font-bold">{r.eco_points_cost} {t("pointsRequired")}</span>
                 </div>
                 <button
                   disabled={redeemed || !canAfford || redeeming === r.id || !user}
                   onClick={() => setConfirmReward(r)}
                   title={
                     !user
-                      ? "Sign in to redeem"
+                      ? t("signInToRedeem")
                       : redeemed
-                        ? "Already redeemed"
+                        ? t("redeemedBtn")
                         : canAfford
-                          ? `Redeem for ${r.eco_points_cost} points`
-                          : `You need ${r.eco_points_cost - balance} more points`
+                          ? `${t("redeemBtn")} ${r.eco_points_cost} ${t("ptsUnit")}`
+                          : t("notEnoughBtn")
                   }
                   className={`w-full h-11 rounded-full font-semibold transition ${
                     redeemed
@@ -335,22 +337,21 @@ export default function Rewards() {
                 >
                   {redeemed ? (
                     <span className="inline-flex items-center gap-1">
-                      <Check className="w-4 h-4" /> Redeemed
+                      <Check className="w-4 h-4" /> {t("redeemedBtn")}
                     </span>
                   ) : redeeming === r.id ? (
-                    "Processing…"
+                    t("processingBtn")
                   ) : !user ? (
-                    "Sign in to redeem"
+                    t("signInToRedeem")
                   ) : canAfford ? (
-                    `Redeem • ${r.eco_points_cost} pts`
+                    `${t("redeemBtn")} • ${r.eco_points_cost} ${t("ptsUnit")}`
                   ) : (
-                    "Not enough points"
+                    t("notEnoughBtn")
                   )}
                 </button>
                 {!canAfford && user && !redeemed && (
                   <p className="text-xs text-muted-foreground mt-2 text-center">
-                    You need {r.eco_points_cost - balance} more Eco Points — recycle items or
-                    check in to earn more.
+                    {t("needMoreA")} {r.eco_points_cost - balance} {t("needMoreB")}
                   </p>
                 )}
               </div>
@@ -360,17 +361,17 @@ export default function Rewards() {
       </div>
       {visible.length === 0 && (
         <p className="text-center text-muted-foreground py-20">
-          No rewards available yet. Check back soon!
+          {t("noRewards")}
         </p>
       )}
 
       <Dialog open={!!confirmReward} onOpenChange={(open) => !open && setConfirmReward(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm redemption</DialogTitle>
+            <DialogTitle>{t("confirmT")}</DialogTitle>
             <DialogDescription>
               {confirmReward &&
-                `Redeem ${confirmReward.name} for ${confirmReward.eco_points_cost} Eco Points? Your balance after redemption will be ${balance - confirmReward.eco_points_cost} points.`}
+                `${t("rwYouRedeemed")} ${confirmReward.name} ${t("rwFor")} ${confirmReward.eco_points_cost} ${t("ecoPointsUnit")}? ${t("rwBalance")}: ${balance - confirmReward.eco_points_cost}.`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -379,7 +380,7 @@ export default function Rewards() {
               onClick={() => setConfirmReward(null)}
               className="h-11 px-5 rounded-full glass font-semibold hover:bg-primary/10 transition"
             >
-              Cancel
+              {t("cancelBtn")}
             </button>
             <button
               type="button"
@@ -388,7 +389,7 @@ export default function Rewards() {
               className="h-11 px-6 rounded-full bg-primary text-primary-foreground font-semibold hover:brightness-110 transition disabled:opacity-60 inline-flex items-center gap-2"
             >
               {redeeming === confirmReward?.id && <Loader2 className="w-4 h-4 animate-spin" />}
-              Confirm • {confirmReward?.eco_points_cost} pts
+              {t("confirmBtn")} • {confirmReward?.eco_points_cost} {t("ptsUnit")}
             </button>
           </DialogFooter>
         </DialogContent>
