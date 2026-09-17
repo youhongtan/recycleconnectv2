@@ -11,14 +11,18 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     (async () => {
+      // Parallel, column-pruned queries: exact counts stay accurate at any
+      // scale, and the chart reads at most 1000 material values.
       const [
         { count: usersCount },
+        { count: actionsCount },
         { data: logs },
         { data: profiles },
         { count: centresCount },
       ] = await Promise.all([
         supabase.from('user_roles').select('*', { count: 'exact', head: true }),
-        supabase.from('recycle_logs').select('*').limit(500),
+        supabase.from('recycle_logs').select('*', { count: 'exact', head: true }),
+        supabase.from('recycle_logs').select('material').limit(1000),
         supabase.from('eco_profiles').select('eco_points'),
         supabase.from('recycling_centres').select('*', { count: 'exact', head: true }),
       ]);
@@ -26,7 +30,7 @@ export default function AdminDashboard() {
       (logs || []).forEach((l) => { matCount[l.material] = (matCount[l.material] || 0) + 1; });
       setStats({
         users: usersCount || 0,
-        actions: logs?.length || 0,
+        actions: actionsCount || 0,
         ecoPoints: (profiles || []).reduce((s, p) => s + (p.eco_points || 0), 0),
         centres: centresCount || 0,
       });

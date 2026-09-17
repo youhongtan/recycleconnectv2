@@ -35,6 +35,7 @@ export default function SchoolRequests() {
   const [missingTable, setMissingTable] = useState(false);
   const [filter, setFilter] = useState("all");
   const [updating, setUpdating] = useState(null);
+  const [mailNote, setMailNote] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
   const [replySubject, setReplySubject] = useState("");
   const [replyText, setReplyText] = useState("");
@@ -72,13 +73,58 @@ export default function SchoolRequests() {
     [requests, filter]
   );
 
+  const STATUS_MAIL = {
+    pending: "Your request is pending review. We will get back to you within 3 days.",
+    contacted: "Thanks — we've received your request and will arrange the pickup details with you shortly.",
+    scheduled: "Good news — your bulk pickup is scheduled. We'll confirm the exact time with you soon.",
+    completed: "Your bulk recycling pickup is marked completed. Thank you for recycling with RecycleConnect!",
+    cancelled: "Your pickup request has been marked cancelled. Reply to this email if you'd like to rebook.",
+  };
+
   const setStatus = async (id, status) => {
+    const r = requests.find((x) => x.id === id);
+    if (r && r.status === status) return;
     setUpdating(id);
+    setMailNote(null);
     const { error: err } = await supabase
       .from("school_pickup_requests")
       .update({ status })
       .eq("id", id);
-    if (!err) setRequests((rs) => rs.map((r) => (r.id === id ? { ...r, status } : r)));
+    if (!err) {
+      setRequests((rs) => rs.map((x) => (x.id === id ? { ...x, status } : x)));
+      // Inform the school by email (best-effort: Resend's free test sender
+      // needs a verified domain to reach non-account addresses).
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const res = await fetch("/api/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "reply",
+            to: r.contact_email,
+            subject: `Recycling pickup ${status} — ${r.school_name}`,
+            text: `Hi ${r.contact_person},\n\n${STATUS_MAIL[status] || ""}\n\nRequest: ${(r.materials || []).join(", ")} (${r.quantity}).\n\n— RecycleConnect team`,
+            accessToken: session?.access_token,
+          }),
+        });
+        const data = await res.json();
+        setMailNote(
+          data.notified
+            ? { id, ok: true, text: `School emailed about “${status}”.` }
+            : {
+                id,
+                ok: false,
+                text: `Status saved, but email failed: ${
+                  typeof data.error === "string" ? data.error : data.reason || "could not send"
+                }`,
+              }
+        );
+      } catch {
+        setMailNote({ id, ok: false, text: "Status saved, but email failed: network error." });
+      }
+    }
     setUpdating(null);
   };
 
@@ -330,6 +376,11 @@ export default function SchoolRequests() {
                 </select>
                 {updating === r.id && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
               </div>
+              {mailNote?.id === r.id && (
+                <p className={`mt-2 text-xs ${mailNote.ok ? "text-primary" : "text-amber-600"}`}>
+                  {mailNote.text}
+                </p>
+              )}
 
               <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <button

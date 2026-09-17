@@ -6,21 +6,35 @@ export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     (async () => {
-      const { data: roles } = await supabase.from('user_roles').select('user_id, role');
-      const { data: authUsers } = await supabase.auth.admin.listUsers();
-      const merged = (authUsers?.users || []).map((au) => {
-        const roleEntry = (roles || []).find((r) => r.user_id === au.id);
-        return {
-          id: au.id,
-          email: au.email,
-          full_name: au.user_metadata?.full_name || '',
-          role: roleEntry?.role || 'user',
-        };
-      });
-      setUsers(merged);
+      // NOTE: supabase.auth.admin.listUsers() needs the service-role key and
+      // can never work from the browser — it silently returned nothing, which
+      // is why this page showed "0 registered users". Instead we read
+      // eco_profiles (admins can read all rows via RLS) and join user_roles.
+      const [{ data: profiles, error: pErr }, { data: roles, error: rErr }] =
+        await Promise.all([
+          supabase
+            .from('eco_profiles')
+            .select('user_id, display_name, email, eco_points, items_recycled, created_at')
+            .order('created_at', { ascending: false }),
+          supabase.from('user_roles').select('user_id, role'),
+        ]);
+      if (pErr || rErr) {
+        setError(pErr?.message || rErr?.message || "Could not load users.");
+      } else {
+        setUsers(
+          (profiles || []).map((p) => ({
+            id: p.user_id,
+            email: p.email,
+            full_name: p.display_name || '',
+            role: (roles || []).find((r) => r.user_id === p.user_id)?.role || 'user',
+          }))
+        );
+      }
       setLoading(false);
     })();
   }, []);
@@ -31,12 +45,15 @@ export default function UserManagement() {
   );
 
   const toggleRole = async (u) => {
+    setActionError("");
     const newRole = u.role === "admin" ? "user" : "admin";
     const { error } = await supabase
       .from('user_roles')
       .upsert({ user_id: u.id, role: newRole }, { onConflict: 'user_id' });
     if (!error) {
       setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, role: newRole } : x)));
+    } else {
+      setActionError(`Could not change role: ${error.message}`);
     }
   };
 
@@ -48,6 +65,12 @@ export default function UserManagement() {
         <h1 className="text-3xl font-bold">User Management</h1>
         <p className="text-muted-foreground mt-1">{users.length} registered users</p>
       </div>
+      {error && (
+        <p role="alert" className="text-sm text-destructive glass orbital p-4">{error}</p>
+      )}
+      {actionError && (
+        <p role="alert" className="text-sm text-destructive glass orbital p-4">{actionError}</p>
+      )}
       <div className="relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input
