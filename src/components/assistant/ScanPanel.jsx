@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { Upload, Loader2, Recycle } from "lucide-react";
 import { Image } from "@/components/ui/image";
+import { useI18n } from "@/lib/i18n";
 
 export default function ScanPanel() {
+  const { t, lang } = useI18n();
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -40,12 +42,14 @@ export default function ScanPanel() {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 120000);
       const imageData = await compressImage(file);
+      const useLang = localStorage.getItem("rc-lang") || lang || "en";
       const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: "You are a Malaysian recycling expert. Look at this photo and identify the item. Reply with: the item name, its material, whether it is recyclable in Malaysia (and any conditions), step-by-step preparation instructions, and one short environmental tip. Keep language simple and friendly.",
           imageData,
+          lang: useLang,
         }),
         signal: controller.signal,
       });
@@ -71,14 +75,14 @@ export default function ScanPanel() {
 
   return (
     <div className="glass orbital soft-shadow p-8">
-      <h2 className="text-2xl font-semibold">Scan an item</h2>
+      <h2 className="text-2xl font-semibold">{t("scanTitle")}</h2>
       <p className="mt-2 text-muted-foreground text-sm">
-        Take or upload a photo and our AI will tell you exactly what to do with it.
+        {t("scanSub")}
       </p>
 
       <label className="mt-6 flex flex-col items-center justify-center gap-3 h-48 rounded-3xl border-2 border-dashed border-primary/40 cursor-pointer hover:bg-primary/5 transition">
         <Upload className="w-7 h-7 text-primary" aria-hidden="true" />
-        <span className="font-medium">Upload or take a photo</span>
+        <span className="font-medium">{t("scanUpload")}</span>
         <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={onFile} />
       </label>
 
@@ -103,10 +107,10 @@ export default function ScanPanel() {
       {result && (
         <div className="mt-6 grid sm:grid-cols-2 gap-4">
           {[
-            ["Item", result.item],
-            ["Material", result.material],
-            ["Recyclable?", result.recyclable],
-            ["Eco tip", result.tip],
+            [t("scanItem"), result.item],
+            [t("scanMaterial"), result.material],
+            [t("scanRecyclable"), result.recyclable],
+            [t("scanTip"), result.tip],
           ].map(([label, value]) => (
             <div key={label} className="glass rounded-3xl p-5">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
@@ -115,7 +119,7 @@ export default function ScanPanel() {
           ))}
           <div className="glass rounded-3xl p-5 sm:col-span-2">
             <p className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <Recycle className="w-3.5 h-3.5" /> How to recycle it
+              <Recycle className="w-3.5 h-3.5" /> {t("scanHow")}
             </p>
             <p className="mt-1 whitespace-pre-line">{result.instructions || "—"}</p>
           </div>

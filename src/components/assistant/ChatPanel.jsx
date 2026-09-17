@@ -1,22 +1,24 @@
 import React, { useState } from "react";
 import { Send, Loader2, Leaf } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
-const SUGGESTIONS = [
-  "Can I recycle bubble wrap?",
-  "Where do I recycle batteries?",
-  "Can pizza boxes be recycled?",
-  "How do I dispose of used cooking oil?",
-];
+const SUGGESTION_KEYS = ["aiSug1", "aiSug2", "aiSug3", "aiSug4"];
 
 export default function ChatPanel() {
-  const [messages, setMessages] = useState([
-    { role: "ai", text: "Hi! I'm your Eco Assistant. Ask me anything about recycling in Malaysia." },
-  ]);
+  const { t, lang } = useI18n();
+  const [messages, setMessages] = useState([{ role: "ai", text: t("aiGreeting"), greeted: lang }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // If the user switches language mid-chat, greet in the new language once.
+  const visibleMessages =
+    messages.length > 0 && messages[0].greeted && messages[0].greeted !== lang
+      ? [{ role: "ai", text: t("aiGreeting"), greeted: lang }, ...messages.slice(1)]
+      : messages;
+
   const ask = async (question) => {
     if (!question.trim() || loading) return;
+    const useLang = localStorage.getItem("rc-lang") || lang || "en";
     setMessages((m) => [...m, { role: "user", text: question }]);
     setInput("");
     setLoading(true);
@@ -26,28 +28,28 @@ export default function ChatPanel() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: question }),
+        body: JSON.stringify({ prompt: question, lang: useLang }),
         signal: controller.signal,
       });
       clearTimeout(timer);
       const data = await res.json();
       if (data.error) {
-        setMessages((m) => [...m, { role: "ai", text: "I'm having trouble finding an answer right now. Please try again in a moment." }]);
+        setMessages((m) => [...m, { role: "ai", text: t("aiErrBusy") }]);
       } else {
         setMessages((m) => [...m, { role: "ai", text: data.answer }]);
       }
     } catch {
-      setMessages((m) => [...m, { role: "ai", text: "Still working on it — please wait a moment and try again." }]);
+      setMessages((m) => [...m, { role: "ai", text: t("aiErrRetry") }]);
     }
     setLoading(false);
   };
 
   return (
     <div className="glass orbital soft-shadow p-8 flex flex-col h-[640px]">
-      <h2 className="text-2xl font-semibold">Eco Assistant chat</h2>
+      <h2 className="text-2xl font-semibold">{t("aiChatTitle")}</h2>
 
       <div className="mt-5 flex-1 overflow-y-auto space-y-4 pr-1">
-        {messages.map((m, i) => (
+        {visibleMessages.map((m, i) => (
           <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : ""}`}>
             {m.role === "ai" && (
               <span className="h-9 w-9 shrink-0 rounded-2xl bg-primary grid place-items-center">
@@ -65,15 +67,15 @@ export default function ChatPanel() {
         ))}
         {loading && (
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
-            <Loader2 className="w-4 h-4 animate-spin" /> Thinking…
+            <Loader2 className="w-4 h-4 animate-spin" /> {t("aiThinking")}
           </div>
         )}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {SUGGESTIONS.map((s) => (
-          <button key={s} type="button" onClick={() => ask(s)} className="text-xs px-3 py-1.5 rounded-full glass hover:bg-primary/10">
-            {s}
+        {SUGGESTION_KEYS.map((k) => (
+          <button key={k} type="button" onClick={() => ask(t(k))} className="text-xs px-3 py-1.5 rounded-full glass hover:bg-primary/10">
+            {t(k)}
           </button>
         ))}
       </div>
@@ -82,15 +84,15 @@ export default function ChatPanel() {
         onSubmit={(e) => { e.preventDefault(); ask(input); }}
         className="mt-4 flex gap-2"
       >
-        <label htmlFor="chat-input" className="sr-only">Ask a recycling question</label>
+        <label htmlFor="chat-input" className="sr-only">{t("aiPlaceholder")}</label>
         <input
           id="chat-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a recycling question…"
+          placeholder={t("aiPlaceholder")}
           className="flex-1 h-13 px-5 py-3 rounded-full bg-background border border-border focus:border-primary"
         />
-        <button type="submit" aria-label="Send question" className="h-12 w-12 shrink-0 rounded-full bg-primary text-primary-foreground grid place-items-center hover:brightness-110 active:scale-95 transition">
+        <button type="submit" aria-label={t("aiPlaceholder")} className="h-12 w-12 shrink-0 rounded-full bg-primary text-primary-foreground grid place-items-center hover:brightness-110 active:scale-95 transition">
           <Send className="w-4 h-4" />
         </button>
       </form>

@@ -6,14 +6,21 @@ function isComplex(prompt) {
 const GROQ_MODELS = ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'openai/gpt-oss-20b'];
 const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-2.5-flash'];
 
-async function callGroq(prompt, apiKey, model) {
+// Reply in the user's app language (sent as `lang` by the frontend).
+function langInstruction(lang) {
+  if (lang === 'ms') return 'Respond ENTIRELY in Bahasa Melayu (Malay).';
+  if (lang === 'zh') return '必须完全用简体中文回答 (Respond ENTIRELY in Simplified Chinese).';
+  return 'Respond in English.';
+}
+
+async function callGroq(prompt, apiKey, model, lang) {
   const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,
       messages: [
-        { role: 'system', content: 'You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer simply, accurately and in 3-5 short sentences.' },
+        { role: 'system', content: `You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer simply, accurately and in 3-5 short sentences. ${langInstruction(lang)}` },
         { role: 'user', content: `Question: ${prompt}` },
       ],
       max_tokens: 300,
@@ -22,12 +29,12 @@ async function callGroq(prompt, apiKey, model) {
   return r.json();
 }
 
-async function callGeminiChat(prompt, apiKey, model) {
+async function callGeminiChat(prompt, apiKey, model, lang) {
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: `You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer accurately in 3-5 short sentences.\n\nQuestion: ${prompt}` }] }],
+      contents: [{ parts: [{ text: `You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer accurately in 3-5 short sentences. ${langInstruction(lang)}\n\nQuestion: ${prompt}` }] }],
     }),
   });
   return r.json();
@@ -67,7 +74,7 @@ module.exports = async function handler(req, res) {
   let body;
   try { body = JSON.parse(bodyStr); } catch { return send(res, 400, { error: 'Invalid JSON body' }); }
 
-  const { prompt } = body;
+  const { prompt, lang } = body;
   if (!prompt) return send(res, 400, { error: 'Prompt is required' });
 
   const groqKey = process.env.VITE_GROQ_API_KEY;
@@ -81,9 +88,9 @@ module.exports = async function handler(req, res) {
   for (const [provider, model] of order) {
     try {
       const data = provider === 'groq' && groqKey
-        ? await callGroq(prompt, groqKey, model)
+        ? await callGroq(prompt, groqKey, model, lang)
         : provider === 'gemini' && geminiKey
-          ? await callGeminiChat(prompt, geminiKey, model)
+          ? await callGeminiChat(prompt, geminiKey, model, lang)
           : null;
       if (!data) continue;
 

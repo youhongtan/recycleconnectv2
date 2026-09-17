@@ -120,14 +120,20 @@ module.exports = async function handler(req, res) {
   let body;
   try { body = JSON.parse(bodyStr); } catch { return send(res, 400, { error: 'Invalid JSON body' }); }
 
-  const { prompt, imageData } = body;
+  const { prompt, imageData, lang } = body;
   if (!prompt) return send(res, 400, { error: 'Prompt is required' });
 
   const groqKey = process.env.VITE_GROQ_API_KEY;
   const geminiKey = process.env.VITE_GEMINI_API_KEY;
 
+  // Keep JSON keys in English, but write the VALUES in the user's language.
+  const langRule =
+    lang === 'ms' ? ' Write all JSON values in Bahasa Melayu (keys stay in English).'
+    : lang === 'zh' ? ' JSON 值全部用简体中文写 (keys stay in English, values in Simplified Chinese).'
+    : '';
+
   const schema = { item: '', material: '', recyclable: '', instructions: '', tip: '' };
-  const textPrompt = prompt + '\n\nYou MUST respond with ONLY valid JSON. No markdown, no explanation. Use exactly these keys: item, material, recyclable, instructions, tip. Example: {"item": "water bottle", "material": "plastic", "recyclable": "Yes, rinse and remove cap", "instructions": "Empty and rinse. Remove label and cap. Place in recycling bin.", "tip": "One plastic bottle takes 450 years to decompose."}';
+  const textPrompt = prompt + '\n\nYou MUST respond with ONLY valid JSON. No markdown, no explanation. Use exactly these keys: item, material, recyclable, instructions, tip.' + langRule + ' Example: {"item": "water bottle", "material": "plastic", "recyclable": "Yes, rinse and remove cap", "instructions": "Empty and rinse. Remove label and cap. Place in recycling bin.", "tip": "One plastic bottle takes 450 years to decompose."}';
 
   const messages = [
     { role: 'system', content: 'You are a JSON-only assistant. Respond with valid JSON and nothing else.' },

@@ -23,14 +23,20 @@ module.exports = defineConfig(({ mode }) => {
     return /no longer|not found|not available|does not exist|model.*(?:unavailable|deprecated)/i.test(msg);
   }
 
-  async function callGroq(prompt, model) {
+  function langInstruction(lang) {
+    if (lang === 'ms') return 'Respond ENTIRELY in Bahasa Melayu (Malay).';
+    if (lang === 'zh') return '必须完全用简体中文回答 (Respond ENTIRELY in Simplified Chinese).';
+    return 'Respond in English.';
+  }
+
+  async function callGroq(prompt, model, lang) {
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${requireKey('VITE_GROQ_API_KEY')}` },
       body: JSON.stringify({
         model,
         messages: [
-          { role: 'system', content: 'You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer simply, accurately and in 3-5 short sentences.' },
+          { role: 'system', content: `You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer simply, accurately and in 3-5 short sentences. ${langInstruction(lang)}` },
           { role: 'user', content: `Question: ${prompt}` },
         ],
         max_tokens: 300,
@@ -39,21 +45,21 @@ module.exports = defineConfig(({ mode }) => {
     return r.json();
   }
 
-  async function callGeminiChat(prompt, model) {
+  async function callGeminiChat(prompt, model, lang) {
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${requireKey('VITE_GEMINI_API_KEY')}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: `You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer accurately in 3-5 short sentences.\n\nQuestion: ${prompt}` }] }],
+        contents: [{ parts: [{ text: `You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer accurately in 3-5 short sentences. ${langInstruction(lang)}\n\nQuestion: ${prompt}` }] }],
       }),
     });
     return r.json();
   }
 
-  async function groqChatFallback(prompt) {
+  async function groqChatFallback(prompt, lang) {
     for (const model of GROQ_MODELS) {
       try {
-        const data = await callGroq(prompt, model);
+        const data = await callGroq(prompt, model, lang);
         const answer = data?.choices?.[0]?.message?.content || '';
         if (answer) return answer;
         if (!modelUnavailable(data?.error?.message || '')) break;
@@ -62,10 +68,10 @@ module.exports = defineConfig(({ mode }) => {
     return '';
   }
 
-  async function geminiChatFallback(prompt) {
+  async function geminiChatFallback(prompt, lang) {
     for (const model of GEMINI_MODELS) {
       try {
-        const data = await callGeminiChat(prompt, model);
+        const data = await callGeminiChat(prompt, model, lang);
         const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
         if (answer) return answer;
         if (!modelUnavailable(data?.error?.message || '')) break;
@@ -86,17 +92,17 @@ module.exports = defineConfig(({ mode }) => {
             req.on('data', (c) => body += c);
             req.on('end', async () => {
               try {
-                const { prompt } = JSON.parse(body);
+                const { prompt, lang } = JSON.parse(body);
                 let answer;
 
                 if (isComplex(prompt)) {
-                  answer = await geminiChatFallback(prompt);
+                  answer = await geminiChatFallback(prompt, lang);
                 }
                 if (!answer) {
-                  answer = await groqChatFallback(prompt);
+                  answer = await groqChatFallback(prompt, lang);
                 }
                 if (!answer) {
-                  answer = await geminiChatFallback(prompt);
+                  answer = await geminiChatFallback(prompt, lang);
                 }
 
                 res.setHeader('Content-Type', 'application/json');
