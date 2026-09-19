@@ -22,6 +22,7 @@ import About from '@/pages/About';
 import Contact from '@/pages/Contact';
 import CheckIn from '@/pages/CheckIn';
 import Rewards from '@/pages/Rewards';
+import SchoolRecycling from '@/pages/SchoolRecycling';
 import Challenges from '@/pages/Challenges';
 import Leaderboard from '@/pages/Leaderboard';
 import Settings from '@/pages/Settings';
