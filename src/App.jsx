@@ -22,8 +22,6 @@ import About from '@/pages/About';
 import Contact from '@/pages/Contact';
 import CheckIn from '@/pages/CheckIn';
 import Rewards from '@/pages/Rewards';
-import SchoolRecycling from '@/pages/SchoolRecycling';
-import Challenges from '@/pages/Challenges';
 import Leaderboard from '@/pages/Leaderboard';
 import Settings from '@/pages/Settings';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
@@ -73,7 +71,6 @@ const AuthenticatedApp = () => {
         <Route path="/check-in" element={<CheckIn />} />
         <Route path="/rewards" element={<Rewards />} />
         <Route path="/schools" element={<SchoolRecycling />} />
-        <Route path="/challenges" element={<Challenges />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/settings" element={<Settings />} />
       </Route>

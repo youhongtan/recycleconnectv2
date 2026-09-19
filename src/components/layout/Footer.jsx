@@ -39,7 +39,6 @@ export default function Footer() {
             <li><Link to="/assistant" className="hover:text-primary">AI Assistant</Link></li>
             <li><Link to="/pollution" className="hover:text-primary">Malaysia Pollution</Link></li>
             <li><Link to="/rewards" className="hover:text-primary">Eco Rewards</Link></li>
-            <li><Link to="/challenges" className="hover:text-primary">Challenges</Link></li>
           </ul>
         </div>
         <div>

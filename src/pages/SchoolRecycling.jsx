@@ -4,16 +4,30 @@ import { supabase } from "@/api/supabaseClient";
 import SectionHeading from "@/components/common/SectionHeading";
 import Reveal from "@/components/common/Reveal";
 import CentreCard from "@/components/finder/CentreCard";
+import BulkMyRequests from "@/components/bulk/BulkMyRequests";
 import { MATERIALS } from "@/lib/recycleData";
-import { findSuitableCentres } from "@/lib/schoolPickup";
+import {
+  findSuitableCentres,
+} from "@/lib/schoolPickup";
 import { useI18n } from "@/lib/i18n";
-import { School, Send, CheckCircle2, Loader2, MapPin, Camera, X } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
+import { School, Send, CheckCircle2, Loader2, MapPin, Camera, X, Truck, Info } from "lucide-react";
 
 export const SCHOOL_CONFIRMATION_MESSAGE =
   "Your response had been received. We will get back to you within 3 days.";
 
 const MATERIAL_OPTIONS = [...MATERIALS, "Others"];
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+
+// Canonical stored values (English); display labels come from i18n.
+const VEHICLES = [
+  { value: "1-ton lorry", labelKey: "veh1t" },
+  { value: "2-ton lorry", labelKey: "veh2t" },
+  { value: "3-ton lorry", labelKey: "veh3t" },
+  { value: "5-ton lorry", labelKey: "veh5t" },
+  { value: "10-ton lorry", labelKey: "veh10t" },
+  { value: "Other / Not sure", labelKey: "vehOther" },
+];
 
 const initialForm = {
   schoolName: "",
@@ -23,7 +37,11 @@ const initialForm = {
   schoolAddress: "",
   materials: [],
   othersSpecify: "",
-  quantity: "",
+  qtyValue: "",
+  qtyUnit: "kg",
+  weightUnknown: false,
+  volumeDesc: "",
+  vehicleSize: "",
   pickupPreference: "",
   notes: "",
 };
@@ -43,7 +61,14 @@ function validate(form, t) {
     errors.materials = t("eMaterials");
   if (form.materials.includes("Others") && !form.othersSpecify.trim())
     errors.othersSpecify = t("eOthers");
-  if (!form.quantity.trim()) errors.quantity = t("eQty");
+  if (!form.vehicleSize) errors.vehicleSize = t("eVehicle");
+  if (form.weightUnknown) {
+    if (!form.volumeDesc.trim()) errors.volumeDesc = t("eVolume");
+  } else {
+    if (!form.qtyValue.trim()) errors.qtyValue = t("eQtyVal");
+    else if (!Number.isFinite(Number(form.qtyValue)) || Number(form.qtyValue) <= 0)
+      errors.qtyValue = t("eQtyVal");
+  }
   if (!form.pickupPreference) errors.pickupPreference = t("ePref");
   return errors;
 }
@@ -59,6 +84,7 @@ async function uploadPhoto(file) {
 
 export default function SchoolRecycling() {
   const { t } = useI18n();
+  const { user } = useAuth();
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
@@ -67,6 +93,7 @@ export default function SchoolRecycling() {
   const [photoWarning, setPhotoWarning] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [matched, setMatched] = useState([]);
+  const [noCentre, setNoCentre] = useState(false);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState("");
 
@@ -114,6 +141,16 @@ export default function SchoolRecycling() {
       m === "Others" ? `Others: ${form.othersSpecify.trim()}` : m
     );
 
+  const estWeightKg = () => {
+    if (form.weightUnknown) return null;
+    const v = Number(form.qtyValue);
+    if (!Number.isFinite(v) || v <= 0) return null;
+    return form.qtyUnit === "tonnes" ? v * 1000 : v;
+  };
+
+  const qtyText = () =>
+    form.weightUnknown ? "Unknown" : `${form.qtyValue.trim()} ${form.qtyUnit}`;
+
   const submit = async (e) => {
     e.preventDefault();
     setSubmitError("");
@@ -124,6 +161,11 @@ export default function SchoolRecycling() {
 
     setBusy(true);
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const submitterId = session?.user?.id || user?.id || null;
+
       // 1. Upload photo (optional) to the shared `uploads` bucket.
       let photoUrl = null;
       if (photoFile) {
@@ -141,19 +183,24 @@ export default function SchoolRecycling() {
       setBusyStep("match");
       const { data: centres } = await supabase.from("recycling_centres").select("*");
 
-      // 3. Match nearest suitable centres for the requested materials + location.
+      // 3. Match nearest REAL suitable centres (material + location tiers).
       const ranked = findSuitableCentres(
-        { materials: finalMaterials(), schoolAddress: form.schoolAddress },
+        {
+          materials: finalMaterials(),
+          schoolAddress: form.schoolAddress,
+          vehicleSize: form.vehicleSize,
+          estWeightKg: estWeightKg(),
+        },
         centres || []
       );
       setMatched(ranked);
+      setNoCentre(ranked.length === 0);
 
       const best = ranked[0] || null;
 
-      // 4. Persist the request. `school_pickup_requests` is created by
-      //    supabase/migration_school_pickup.sql (+ v2 columns). If the table
-      //    has not been created yet, keep a local copy so the request is
-      //    never lost — the confirmation below still applies.
+      // 4. Persist the request (columns from migration_school_pickup*.sql).
+      //    If the table/columns are missing, keep a local copy — confirmation stands.
+      const now = new Date().toISOString();
       const payload = {
         school_name: form.schoolName.trim(),
         contact_person: form.contactPerson.trim(),
@@ -161,13 +208,27 @@ export default function SchoolRecycling() {
         contact_phone: form.contactPhone.trim(),
         school_address: form.schoolAddress.trim(),
         materials: finalMaterials(),
-        quantity: form.quantity.trim(),
+        quantity: qtyText(),
+        qty_unit: form.qtyUnit,
+        est_weight_kg: estWeightKg(),
+        weight_unknown: form.weightUnknown,
+        volume_desc: form.weightUnknown ? form.volumeDesc.trim() : null,
+        vehicle_size: form.vehicleSize,
         pickup_date: null,
         pickup_preference: form.pickupPreference,
         photo_url: photoUrl,
         notes: form.notes.trim() || null,
+        user_id: submitterId,
         matched_centre_id: best?.centre?.id || null,
         matched_centre_name: best?.centre?.name || null,
+        centre_source: "auto",
+        admin_note: null,
+        rec_matched_materials: best?.matchedMaterials || [],
+        rec_distance_km: null,
+        rec_source: "auto",
+        rec_at: now,
+        rec_pickup_verified: best ? best.pickupVerified : false,
+        rec_verified: false,
       };
       try {
         const { error: insertError } = await supabase
@@ -175,9 +236,8 @@ export default function SchoolRecycling() {
           .insert(payload);
         if (insertError) throw insertError;
       } catch (dbError) {
-        // Table/columns missing or RLS blocked — fall back to local outbox.
         const outbox = JSON.parse(localStorage.getItem("rc-school-requests") || "[]");
-        outbox.push({ ...payload, created_at: new Date().toISOString(), pending_sync: true });
+        outbox.push({ ...payload, created_at: now, pending_sync: true });
         localStorage.setItem("rc-school-requests", JSON.stringify(outbox));
         if (import.meta.env.DEV) console.warn("school_pickup_requests insert failed, queued locally:", dbError?.message);
       }
@@ -206,6 +266,8 @@ export default function SchoolRecycling() {
       : form.pickupPreference === "weekend"
         ? t("prefWeekend")
         : form.pickupPreference;
+  const vehLabel = (v) =>
+    ({ "1-ton lorry": t("veh1t"), "2-ton lorry": t("veh2t"), "3-ton lorry": t("veh3t"), "5-ton lorry": t("veh5t"), "10-ton lorry": t("veh10t") }[v] || t("vehOther"));
 
   if (submitted) {
     const best = matched[0] || null;
@@ -225,7 +287,7 @@ export default function SchoolRecycling() {
             </p>
             <p className="mt-4 text-sm text-muted-foreground">
               {t("reqSumA")} <strong>{form.schoolName}</strong> —{" "}
-              <strong>{finalMaterials().join(", ")}</strong> ({form.quantity}), {prefLabel}.{" "}
+              <strong>{finalMaterials().join(", ")}</strong> ({qtyText()}, {vehLabel(form.vehicleSize)}) — {prefLabel}.{" "}
               {t("reqSumContact")} {form.contactPerson} ({form.contactEmail} / {form.contactPhone}).
             </p>
             {photoWarning && (
@@ -237,6 +299,7 @@ export default function SchoolRecycling() {
                 onClick={() => {
                   setForm(initialForm);
                   setMatched([]);
+                  setNoCentre(false);
                   setSubmitted(false);
                   clearPhoto();
                 }}
@@ -254,31 +317,46 @@ export default function SchoolRecycling() {
           </div>
         </Reveal>
 
-        {best && (
+        {best ? (
           <Reveal delay={0.1}>
             <div className="mt-8">
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-primary" /> {t("suggestedT")}
               </h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Based on your materials ({finalMaterials().join(", ")}) and school location, this
-                is the nearest suitable centre in our directory. This is a suggestion only — our
-                team will confirm the actual pickup arrangement when we contact you.
-              </p>
-              <div className="mt-4">
-                <CentreCard centre={best.centre} highlight />
-                {best.reasons.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {best.reasons.map((r) => (
-                      <span
-                        key={r}
-                        className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/12 text-primary"
-                      >
-                        {r}
-                      </span>
-                    ))}
-                  </div>
+              <div className="mt-4 panel-solid orbital soft-shadow p-6">
+                <p className="font-bold text-lg">{best.centre.name}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  📍 {best.locationLabel || best.centre.address}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  ♻️ {t("scanMaterial")}: {(best.matchedMaterials || []).join(" · ")}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {best.reasons.map((r) => (
+                    <span
+                      key={r}
+                      className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/12 text-primary"
+                    >
+                      {r}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs font-semibold text-amber-600">
+                  {t("potentialNote")}
+                </p>
+                {!best.pickupVerified && (
+                  <p className="mt-1 text-xs font-semibold text-amber-600">
+                    {t("capacityNote")}
+                  </p>
                 )}
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${best.centre.name} ${best.centre.address}`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-4 h-11 px-5 rounded-full bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center hover:brightness-110 transition"
+                >
+                  {t("builtCta")}
+                </a>
               </div>
               {matched.length > 1 && (
                 <div className="mt-6 grid md:grid-cols-2 gap-4">
@@ -289,6 +367,14 @@ export default function SchoolRecycling() {
               )}
             </div>
           </Reveal>
+        ) : (
+          noCentre && (
+            <Reveal delay={0.1}>
+              <div className="mt-8 panel-solid orbital soft-shadow p-6 text-center text-sm font-medium">
+                {t("noCentreFallback")}
+              </div>
+            </Reveal>
+          )
         )}
       </div>
     );
@@ -302,8 +388,28 @@ export default function SchoolRecycling() {
         subtitle={t("schSub")}
       />
 
+      {/* What bulk recycling means (sec 18.1 + 18.4) */}
+      <Reveal delay={0.02}>
+        <div className="mt-12 panel-solid orbital soft-shadow p-6 sm:p-8 space-y-4">
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <Info className="w-5 h-5 text-primary" /> {t("bulkWhatT")}
+          </h2>
+          <p className="text-sm text-muted-foreground">{t("bulkWhatB")}</p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-border p-4">
+              <p className="font-bold text-sm">{t("regT")}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("regB")}</p>
+            </div>
+            <div className="rounded-2xl border border-primary/50 bg-primary/5 p-4">
+              <p className="font-bold text-sm">{t("bulkT")}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("bulkB")}</p>
+            </div>
+          </div>
+        </div>
+      </Reveal>
+
       <Reveal delay={0.05}>
-        <form onSubmit={submit} noValidate className="mt-12 glass orbital soft-shadow p-6 sm:p-8 space-y-5">
+        <form onSubmit={submit} noValidate className="mt-6 glass orbital soft-shadow p-6 sm:p-8 space-y-5">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <span className="h-10 w-10 rounded-2xl bg-primary/12 grid place-items-center shrink-0">
               <School className="w-5 h-5 text-primary" />
@@ -425,19 +531,62 @@ export default function SchoolRecycling() {
             )}
           </fieldset>
 
+          {/* Estimated quantity + vehicle (sec 18.2 + 18.3) */}
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="s-qty" className="block text-sm font-semibold mb-2">
                 {t("fQty")} *
               </label>
-              <input
-                id="s-qty"
-                className={field}
-                placeholder="e.g. 200 kg, 30 bags"
-                value={form.quantity}
-                onChange={(e) => set("quantity", e.target.value)}
-              />
-              {errText("quantity")}
+              <div className="flex gap-2">
+                <input
+                  id="s-qty"
+                  type="number"
+                  min="0"
+                  step="any"
+                  inputMode="decimal"
+                  disabled={form.weightUnknown}
+                  className={`${field} disabled:opacity-50`}
+                  placeholder="e.g. 500"
+                  value={form.qtyValue}
+                  onChange={(e) => set("qtyValue", e.target.value)}
+                />
+                <select
+                  aria-label={t("fQtyUnit")}
+                  value={form.qtyUnit}
+                  disabled={form.weightUnknown}
+                  onChange={(e) => set("qtyUnit", e.target.value)}
+                  className="h-12 px-3 rounded-2xl bg-background border border-border focus:border-primary text-sm font-semibold disabled:opacity-50"
+                >
+                  <option value="kg">{t("unitKg")}</option>
+                  <option value="tonnes">{t("unitTonnes")}</option>
+                </select>
+              </div>
+              {errText("qtyValue")}
+              <label className="mt-2 flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.weightUnknown}
+                  onChange={(e) => set("weightUnknown", e.target.checked)}
+                  className="h-4 w-4 rounded accent-[#2E7D32]"
+                />
+                {t("qtyUnknown")}
+              </label>
+              {form.weightUnknown && (
+                <div className="mt-3">
+                  <label htmlFor="s-volume" className="block text-sm font-semibold mb-2">
+                    {t("fVolume")} *
+                  </label>
+                  <textarea
+                    id="s-volume"
+                    rows={2}
+                    className="w-full p-4 rounded-2xl bg-background border border-border focus:border-primary"
+                    placeholder="e.g. 2 classrooms of stacked newspaper, ~40 bags"
+                    value={form.volumeDesc}
+                    onChange={(e) => set("volumeDesc", e.target.value)}
+                  />
+                  {errText("volumeDesc")}
+                </div>
+              )}
             </div>
             <fieldset>
               <legend className="text-sm font-semibold mb-2">{t("fPickup")} *</legend>
@@ -469,6 +618,37 @@ export default function SchoolRecycling() {
               {errText("pickupPreference")}
             </fieldset>
           </div>
+
+          {/* Vehicle size (sec 18.2 + 18.7) */}
+          <fieldset>
+            <legend className="text-sm font-semibold mb-2 flex items-center gap-2">
+              <Truck className="w-4 h-4 text-primary" /> {t("fVehicle")} *
+            </legend>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {VEHICLES.map(({ value, labelKey }) => (
+                <label
+                  key={value}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-2xl border text-sm cursor-pointer transition-colors ${
+                    form.vehicleSize === value
+                      ? "border-primary bg-primary/5 font-semibold"
+                      : "border-border"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="vehicleSize"
+                    value={value}
+                    checked={form.vehicleSize === value}
+                    onChange={() => set("vehicleSize", value)}
+                    className="h-4 w-4 accent-[#2E7D32]"
+                  />
+                  {t(labelKey)}
+                </label>
+              ))}
+            </div>
+            {errText("vehicleSize")}
+            <p className="text-xs text-muted-foreground mt-2">{t("vehNote")}</p>
+          </fieldset>
 
           <div>
             <span className="block text-sm font-semibold mb-2">
@@ -549,6 +729,12 @@ export default function SchoolRecycling() {
           </p>
         </form>
       </Reveal>
+
+      {user && (
+        <div className="mt-10">
+          <BulkMyRequests />
+        </div>
+      )}
     </div>
   );
 }

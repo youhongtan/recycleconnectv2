@@ -16,7 +16,6 @@ const PRIMARY = [
 
 const MORE = [
   { to: "/pollution", key: "pollution" },
-  { to: "/challenges", key: "challenges" },
   { to: "/leaderboard", key: "leaderboard" },
   { to: "/profile", key: "profile" },
   { to: "/schools", key: "schools" },
@@ -54,8 +53,8 @@ export default function Nav() {
   return (
     <header className="fixed top-0 inset-x-0 z-50 px-4 sm:px-6 pt-4">
       <nav
-        className={`mx-auto max-w-6xl rounded-full glass soft-shadow transition-all duration-500 ${
-          scrolled ? "py-2 px-3 opacity-95" : "py-3 px-4"
+        className={`mx-auto max-w-6xl rounded-full bg-card/95 backdrop-blur-xl border border-border soft-shadow transition-all duration-500 ${
+          scrolled ? "py-2 px-3 opacity-100" : "py-3 px-4"
         }`}
         aria-label="Main"
       >
@@ -84,7 +83,7 @@ export default function Nav() {
                 {t("more")} <ChevronDown className={`w-3.5 h-3.5 transition-transform ${moreOpen ? "rotate-180" : ""}`} />
               </button>
               {moreOpen && (
-                <div className="absolute top-full right-0 mt-2 w-44 rounded-2xl glass soft-shadow p-2 space-y-0.5 border border-border/60">
+                <div className="absolute top-full right-0 mt-2 w-44 rounded-2xl bg-card border border-border soft-shadow p-2 space-y-0.5 z-50">
                   {MORE.map((l) => (
                     <NavLink
                       key={l.to}
@@ -123,7 +122,7 @@ export default function Nav() {
             <ThemeToggle />
             <button
               type="button"
-              className="lg:hidden h-10 w-10 rounded-full grid place-items-center glass"
+              className="lg:hidden h-10 w-10 rounded-full grid place-items-center bg-card border border-border"
               onClick={() => setOpen((o) => !o)}
               aria-label={open ? "Close menu" : "Open menu"}
               aria-expanded={open}

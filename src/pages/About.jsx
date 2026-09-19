@@ -13,7 +13,7 @@ const GOALS = [
 
 const TIMELINE = [
   { when: "2026 Q1", what: "Launch AI assistant, centre finder and learning library." },
-  { when: "2026 Q2", what: "School challenge programme and community leaderboards." },
+  { when: "2026 Q2", what: "School bulk-recycling programme and community leaderboards." },
   { when: "2026 Q3", what: "QR Eco Points with voucher partners." },
   { when: "2026 Q4", what: "Nationwide verified centre database and home-collection booking." },
 ];

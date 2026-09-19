@@ -5,6 +5,8 @@ import SectionHeading from "@/components/common/SectionHeading";
 import Reveal from "@/components/common/Reveal";
 import ProfileStats from "@/components/profile/ProfileStats";
 import Badges from "@/components/profile/Badges";
+import TransactionHistory from "@/components/profile/TransactionHistory";
+import BulkMyRequests from "@/components/bulk/BulkMyRequests";
 
 import { Loader2, Coins } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -72,6 +74,8 @@ export default function Profile() {
       </Reveal>
       <Reveal><ProfileStats profile={profile} /></Reveal>
       <Reveal delay={0.1}><Badges earned={profile.badges || []} /></Reveal>
+      <Reveal delay={0.15}><TransactionHistory /></Reveal>
+      <Reveal delay={0.2}><BulkMyRequests /></Reveal>
     </div>
   );
 }

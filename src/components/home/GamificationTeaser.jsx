@@ -6,7 +6,7 @@ import SectionHeading from "@/components/common/SectionHeading";
 import { useI18n } from "@/lib/i18n";
 
 const ITEMS = [
-  { icon: Target, titleKey: "gamChTitle", bodyKey: "gamChBody" },
+  { icon: Target, titleKey: "gamBonusTitle", bodyKey: "gamBonusBody" },
   { icon: Flame, titleKey: "gamStTitle", bodyKey: "gamStBody" },
   { icon: Trophy, titleKey: "gamLbTitle", bodyKey: "gamLbBody" },
   { icon: Gift, titleKey: "gamRwTitle", bodyKey: "gamRwBody" },
