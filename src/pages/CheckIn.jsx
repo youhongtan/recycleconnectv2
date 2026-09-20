@@ -4,6 +4,7 @@ import { supabase } from "@/api/supabaseClient";
 import { getLevel } from "@/lib/recycleData";
 import { getOrCreateProfile } from "@/lib/ecoProfile";
 import { MATERIALS_GRAMS, MATERIAL_RATES, validateGrams, quoteSubmission } from "@/lib/ecoConfig";
+import { MATERIAL_KEY } from "@/lib/recycleData";
 import { useI18n } from "@/lib/i18n";
 import { MapPin, Clock, Phone, CheckCircle2, Loader2, Sparkles, ScanLine } from "lucide-react";
 
@@ -163,7 +164,7 @@ export default function CheckIn() {
           {MATERIALS_GRAMS.map((m) => (
             <div key={m} className={`p-3 rounded-2xl border transition-colors ${Number(grams[m] || 0) > 0 ? "border-primary bg-primary/5" : "border-border"}`}>
               <div className="flex items-center gap-3">
-                <span className="flex-1 font-medium">{m}</span>
+                <span className="flex-1 font-medium">{t(MATERIAL_KEY[m] || m)}</span>
                 <span className="text-sm text-muted-foreground">{MATERIAL_RATES[m]} {t("ciPer100")}</span>
               </div>
               <div className="mt-2 flex items-center gap-2">

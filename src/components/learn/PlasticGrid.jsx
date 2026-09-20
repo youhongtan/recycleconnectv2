@@ -1,6 +1,7 @@
 import React from "react";
 import Reveal from "@/components/common/Reveal";
 import { PLASTIC_TYPES } from "@/lib/recycleData";
+import { useI18n } from "@/lib/i18n";
 import {
   Accordion,
   AccordionContent,
@@ -14,11 +15,14 @@ const diffColor = {
   Hard: "bg-rose-500/15 text-rose-700 dark:text-rose-400",
 };
 
+const diffKey = { Easy: "diffEasy", Medium: "diffMedium", Hard: "diffHard" };
+
 export default function PlasticGrid() {
+  const { t } = useI18n();
   return (
     <section className="mt-20">
-      <h2 className="text-3xl font-bold tracking-tight">The 7 plastic types</h2>
-      <p className="mt-2 text-muted-foreground">Check the number inside the triangle on your packaging.</p>
+      <h2 className="text-3xl font-bold tracking-tight">{t("plasticT")}</h2>
+      <p className="mt-2 text-muted-foreground">{t("plasticSub")}</p>
 
       <div className="mt-8 grid md:grid-cols-2 gap-5">
         {PLASTIC_TYPES.map((p, i) => (
@@ -29,20 +33,20 @@ export default function PlasticGrid() {
                   {p.code}
                 </span>
                 <div>
-                  <h3 className="text-xl font-semibold">{p.name}</h3>
-                  <p className="text-sm text-muted-foreground">{p.recyclable}</p>
+                  <h3 className="text-xl font-semibold">{t(`pl${i}Name`)}</h3>
+                  <p className="text-sm text-muted-foreground">{t(`pl${i}Rec`)}</p>
                 </div>
                 <span className={`ml-auto text-xs font-semibold px-3 py-1 rounded-full ${diffColor[p.difficulty]}`}>
-                  {p.difficulty}
+                  {t(diffKey[p.difficulty] || "diffMedium")}
                 </span>
               </div>
               <Accordion type="single" collapsible className="mt-4">
                 <AccordionItem value="details" className="border-none">
-                  <AccordionTrigger className="text-sm font-semibold py-2">Details</AccordionTrigger>
+                  <AccordionTrigger className="text-sm font-semibold py-2">{t("detailsT")}</AccordionTrigger>
                   <AccordionContent className="text-sm text-muted-foreground space-y-3">
-                    <p><strong className="text-foreground">Examples:</strong> {p.examples}</p>
-                    <p><strong className="text-foreground">How to recycle:</strong> {p.how}</p>
-                    <p><strong className="text-foreground">Impact:</strong> {p.impact}</p>
+                    <p><strong className="text-foreground">{t("examplesT")}</strong> {t(`pl${i}Ex`)}</p>
+                    <p><strong className="text-foreground">{t("howT")}</strong> {t(`pl${i}How`)}</p>
+                    <p><strong className="text-foreground">{t("impactT")}</strong> {t(`pl${i}Imp`)}</p>
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>

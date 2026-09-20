@@ -1,19 +1,21 @@
 import React from "react";
 import Counter from "@/components/common/Counter";
+import { useI18n } from "@/lib/i18n";
 import { Flame, Recycle, Cloud, Package } from "lucide-react";
 
 export const levelFromXp = (xp) => Math.floor(xp / 500) + 1;
 
 export default function ProfileStats({ profile }) {
+  const { t } = useI18n();
   const level = levelFromXp(profile.xp || 0);
   const intoLevel = (profile.xp || 0) % 500;
   const pct = (intoLevel / 500) * 100;
 
   const cards = [
-    { icon: Package, label: "Items recycled", value: profile.items_recycled || 0 },
-    { icon: Recycle, label: "Plastic saved (kg)", value: profile.plastic_saved_kg || 0, decimals: 1 },
-    { icon: Cloud, label: "CO₂ reduced (kg)", value: profile.co2_reduced_kg || 0, decimals: 1 },
-    { icon: Flame, label: "Day streak", value: profile.streak_days || 0 },
+    { icon: Package, label: t("psItems"), value: profile.items_recycled || 0 },
+    { icon: Recycle, label: t("psPlastic"), value: profile.plastic_saved_kg || 0, decimals: 1 },
+    { icon: Cloud, label: t("psCo2"), value: profile.co2_reduced_kg || 0, decimals: 1 },
+    { icon: Flame, label: t("psStreak"), value: profile.streak_days || 0 },
   ];
 
   return (
@@ -21,8 +23,8 @@ export default function ProfileStats({ profile }) {
       <div className="glass orbital soft-shadow p-8">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-sm uppercase tracking-wider text-muted-foreground">Eco level</p>
-            <p className="text-5xl font-bold tracking-tight">Level {level}</p>
+            <p className="text-sm uppercase tracking-wider text-muted-foreground">{t("psLevel")}</p>
+            <p className="text-5xl font-bold tracking-tight">{t("psLevelN")} {level}</p>
           </div>
           <p className="text-lg font-semibold text-primary">{profile.xp || 0} XP</p>
         </div>
@@ -34,10 +36,10 @@ export default function ProfileStats({ profile }) {
             aria-valuenow={Math.round(pct)}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-label="Progress to next level"
+            aria-label={t("psProgress")}
           />
         </div>
-        <p className="mt-2 text-sm text-muted-foreground">{500 - intoLevel} XP to level {level + 1}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{500 - intoLevel} {t("psXpTo")} {level + 1}</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

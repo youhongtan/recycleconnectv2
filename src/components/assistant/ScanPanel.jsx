@@ -62,12 +62,12 @@ export default function ScanPanel() {
       const msg = err?.message || "";
       if (msg.includes("Rate limit") || msg.includes("rate limit")) {
         if (msg.includes("day") || msg.includes("TPD") || msg.includes("per day")) {
-          setError("Daily AI scan limit reached (free tier allows ~55 scans/day). Try again tomorrow, or upgrade the Groq plan for more.");
+          setError(t("seDay"));
         } else {
-          setError("Too many scans right now. Please wait about a minute and try again.");
+          setError(t("seMin"));
         }
       } else {
-        setError(`We couldn't analyze that image. ${msg || "Please try again."}`);
+        setError(`${t("seFail")}${msg || t("submitFail")}`);
       }
     }
     setLoading(false);

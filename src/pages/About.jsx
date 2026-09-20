@@ -3,28 +3,30 @@ import SectionHeading from "@/components/common/SectionHeading";
 import Reveal from "@/components/common/Reveal";
 import { Image } from "@/components/ui/image";
 import { Target, Sprout, Handshake, Rocket } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 const GOALS = [
-  { icon: Target, title: "Our mission", body: "Connecting People for a Greener Tomorrow — making correct recycling the easiest choice for every Malaysian household." },
-  { icon: Sprout, title: "Why it matters", body: "Malaysia generates around 39,000 tonnes of waste daily. Better sorting at home is the single fastest lever we have." },
-  { icon: Handshake, title: "Partners", body: "We work alongside councils, school eco-clubs, mall operators, scrap dealers and cooking-oil collectors nationwide." },
-  { icon: Rocket, title: "Roadmap", body: "QR-based Eco Points, verified centre data, school leaderboards and a Bahasa Melayu voice assistant." },
+  { icon: Target, titleKey: "abT0", bodyKey: "abB0" },
+  { icon: Sprout, titleKey: "abT1", bodyKey: "abB1" },
+  { icon: Handshake, titleKey: "abT2", bodyKey: "abB2" },
+  { icon: Rocket, titleKey: "abT3", bodyKey: "abB3" },
 ];
 
 const TIMELINE = [
-  { when: "2026 Q1", what: "Launch AI assistant, centre finder and learning library." },
-  { when: "2026 Q2", what: "School bulk-recycling programme and community leaderboards." },
-  { when: "2026 Q3", what: "QR Eco Points with voucher partners." },
-  { when: "2026 Q4", what: "Nationwide verified centre database and home-collection booking." },
+  { when: "2026 Q1", whatKey: "abTl0" },
+  { when: "2026 Q2", whatKey: "abTl1" },
+  { when: "2026 Q3", whatKey: "abTl2" },
+  { when: "2026 Q4", whatKey: "abTl3" },
 ];
 
 export default function About() {
+  const { t } = useI18n();
   return (
     <div className="max-w-6xl mx-auto px-6 pb-10">
       <SectionHeading
-        eyebrow="About"
-        title="A student-built platform for a national problem"
-        subtitle="RecycleConnect began as a simple question: why is it so hard to know where our rubbish should go?"
+        eyebrow={t("abEyebrow")}
+        title={t("abTitle")}
+        subtitle={t("abSub")}
       />
 
       <Reveal delay={0.1}>
@@ -37,26 +39,26 @@ export default function About() {
 
       <div className="mt-16 grid md:grid-cols-2 gap-5">
         {GOALS.map((g, i) => (
-          <Reveal key={g.title} delay={(i % 2) * 0.08}>
+          <Reveal key={g.titleKey} delay={(i % 2) * 0.08}>
             <article className="h-full glass orbital soft-shadow p-8">
               <span className="h-12 w-12 rounded-2xl bg-primary/12 grid place-items-center">
                 <g.icon className="w-6 h-6 text-primary" aria-hidden="true" />
               </span>
-              <h3 className="mt-5 text-xl font-semibold">{g.title}</h3>
-              <p className="mt-3 text-muted-foreground">{g.body}</p>
+              <h3 className="mt-5 text-xl font-semibold">{t(g.titleKey)}</h3>
+              <p className="mt-3 text-muted-foreground">{t(g.bodyKey)}</p>
             </article>
           </Reveal>
         ))}
       </div>
 
       <section className="mt-24">
-        <h2 className="text-3xl font-bold tracking-tight">Future roadmap</h2>
+        <h2 className="text-3xl font-bold tracking-tight">{t("abRoadmap")}</h2>
         <div className="mt-8 space-y-4">
-          {TIMELINE.map((t, i) => (
-            <Reveal key={t.when} delay={i * 0.06}>
+          {TIMELINE.map((t2, i) => (
+            <Reveal key={t2.when} delay={i * 0.06}>
               <div className="glass orbital soft-shadow p-6 flex flex-col sm:flex-row sm:items-center gap-3">
-                <span className="text-sm font-semibold text-primary w-28 shrink-0">{t.when}</span>
-                <span className="text-muted-foreground">{t.what}</span>
+                <span className="text-sm font-semibold text-primary w-28 shrink-0">{t2.when}</span>
+                <span className="text-muted-foreground">{t(t2.whatKey)}</span>
               </div>
             </Reveal>
           ))}

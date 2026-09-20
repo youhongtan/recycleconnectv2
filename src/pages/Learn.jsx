@@ -4,14 +4,16 @@ import Reveal from "@/components/common/Reveal";
 import PlasticGrid from "@/components/learn/PlasticGrid";
 import TopicGrid from "@/components/learn/TopicGrid";
 import { Image } from "@/components/ui/image";
+import { useI18n } from "@/lib/i18n";
 
 export default function Learn() {
+  const { t } = useI18n();
   return (
     <div className="max-w-6xl mx-auto px-6 pb-10">
       <SectionHeading
-        eyebrow="Learn"
-        title="Know your materials"
-        subtitle="Clear, Malaysia-specific guidance on what can be recycled, how to prepare it, and why it matters."
+        eyebrow={t("learnEyebrow")}
+        title={t("learnTitle")}
+        subtitle={t("learnSub")}
       />
 
       <Reveal delay={0.1}>

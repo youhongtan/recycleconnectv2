@@ -1,7 +1,9 @@
 import React from "react";
-import { MATERIALS } from "@/lib/recycleData";
+import { MATERIALS, MATERIAL_KEY } from "@/lib/recycleData";
+import { useI18n } from "@/lib/i18n";
 
 export default function MaterialFilters({ active, onToggle }) {
+  const { t } = useI18n();
   return (
     <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by material">
       {MATERIALS.map((m) => {
@@ -18,7 +20,7 @@ export default function MaterialFilters({ active, onToggle }) {
                 : "glass hover:bg-primary/10"
             }`}
           >
-            {m}
+            {t(MATERIAL_KEY[m] || m)}
           </button>
         );
       })}

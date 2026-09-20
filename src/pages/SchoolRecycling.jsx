@@ -5,29 +5,19 @@ import SectionHeading from "@/components/common/SectionHeading";
 import Reveal from "@/components/common/Reveal";
 import CentreCard from "@/components/finder/CentreCard";
 import BulkMyRequests from "@/components/bulk/BulkMyRequests";
-import { MATERIALS } from "@/lib/recycleData";
+import { MATERIALS, MATERIAL_KEY } from "@/lib/recycleData";
 import {
   findSuitableCentres,
 } from "@/lib/schoolPickup";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
-import { School, Send, CheckCircle2, Loader2, MapPin, Camera, X, Truck, Info } from "lucide-react";
+import { School, Send, CheckCircle2, Loader2, MapPin, Camera, X, Info } from "lucide-react";
 
 export const SCHOOL_CONFIRMATION_MESSAGE =
   "Your response had been received. We will get back to you within 3 days.";
 
 const MATERIAL_OPTIONS = [...MATERIALS, "Others"];
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
-
-// Canonical stored values (English); display labels come from i18n.
-const VEHICLES = [
-  { value: "1-ton lorry", labelKey: "veh1t" },
-  { value: "2-ton lorry", labelKey: "veh2t" },
-  { value: "3-ton lorry", labelKey: "veh3t" },
-  { value: "5-ton lorry", labelKey: "veh5t" },
-  { value: "10-ton lorry", labelKey: "veh10t" },
-  { value: "Other / Not sure", labelKey: "vehOther" },
-];
 
 const initialForm = {
   schoolName: "",
@@ -41,7 +31,6 @@ const initialForm = {
   qtyUnit: "kg",
   weightUnknown: false,
   volumeDesc: "",
-  vehicleSize: "",
   pickupPreference: "",
   notes: "",
 };
@@ -61,7 +50,6 @@ function validate(form, t) {
     errors.materials = t("eMaterials");
   if (form.materials.includes("Others") && !form.othersSpecify.trim())
     errors.othersSpecify = t("eOthers");
-  if (!form.vehicleSize) errors.vehicleSize = t("eVehicle");
   if (form.weightUnknown) {
     if (!form.volumeDesc.trim()) errors.volumeDesc = t("eVolume");
   } else {
@@ -188,7 +176,6 @@ export default function SchoolRecycling() {
         {
           materials: finalMaterials(),
           schoolAddress: form.schoolAddress,
-          vehicleSize: form.vehicleSize,
           estWeightKg: estWeightKg(),
         },
         centres || []
@@ -213,7 +200,7 @@ export default function SchoolRecycling() {
         est_weight_kg: estWeightKg(),
         weight_unknown: form.weightUnknown,
         volume_desc: form.weightUnknown ? form.volumeDesc.trim() : null,
-        vehicle_size: form.vehicleSize,
+        vehicle_size: null,
         pickup_date: null,
         pickup_preference: form.pickupPreference,
         photo_url: photoUrl,
@@ -266,8 +253,6 @@ export default function SchoolRecycling() {
       : form.pickupPreference === "weekend"
         ? t("prefWeekend")
         : form.pickupPreference;
-  const vehLabel = (v) =>
-    ({ "1-ton lorry": t("veh1t"), "2-ton lorry": t("veh2t"), "3-ton lorry": t("veh3t"), "5-ton lorry": t("veh5t"), "10-ton lorry": t("veh10t") }[v] || t("vehOther"));
 
   if (submitted) {
     const best = matched[0] || null;
@@ -287,7 +272,7 @@ export default function SchoolRecycling() {
             </p>
             <p className="mt-4 text-sm text-muted-foreground">
               {t("reqSumA")} <strong>{form.schoolName}</strong> —{" "}
-              <strong>{finalMaterials().join(", ")}</strong> ({qtyText()}, {vehLabel(form.vehicleSize)}) — {prefLabel}.{" "}
+              <strong>{finalMaterials().join(", ")}</strong> ({qtyText()}) — {prefLabel}.{" "}
               {t("reqSumContact")} {form.contactPerson} ({form.contactEmail} / {form.contactPhone}).
             </p>
             {photoWarning && (
@@ -332,12 +317,18 @@ export default function SchoolRecycling() {
                   ♻️ {t("scanMaterial")}: {(best.matchedMaterials || []).join(" · ")}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
-                  {best.reasons.map((r) => (
+                  {best.reasons.map((r, ri) => (
                     <span
-                      key={r}
+                      key={ri}
                       className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/12 text-primary"
                     >
-                      {r}
+                      {r.k === "mat" && `${t("rsnAccepts")} ${(r.mats || []).join(", ")}`}
+                      {(r.k === "city" || r.k === "state") && `${t("rsnIn")} ${r.place}`}
+                      {r.k === "nearby" && `${t("rsnNearby")} (${r.place})`}
+                      {r.k === "pickup" && t("rsnPickup")}
+                      {r.k === "cash" && t("rsnCash")}
+                      {r.k === "rating" && `${t("rsnRated")} (${r.rating})`}
+                      {r.k === "custom" && t("rsnCustom")}
                     </span>
                   ))}
                 </div>
@@ -424,7 +415,7 @@ export default function SchoolRecycling() {
             <input
               id="s-school"
               className={field}
-              placeholder="e.g. SMK Taman Melawati"
+              placeholder="SMK Taman Melawati"
               value={form.schoolName}
               onChange={(e) => set("schoolName", e.target.value)}
             />
@@ -480,11 +471,11 @@ export default function SchoolRecycling() {
             <label htmlFor="s-address" className="block text-sm font-semibold mb-2">
               {t("fAddress")} *
             </label>
-            <textarea
-              id="s-address"
-              rows={2}
-              className="w-full p-4 rounded-2xl bg-background border border-border focus:border-primary"
-              placeholder="Street, city, state — used to find the nearest centre"
+              <textarea
+                id="s-address"
+                rows={2}
+                className="w-full p-4 rounded-2xl bg-background border border-border focus:border-primary"
+                placeholder={t("phAddress")}
               value={form.schoolAddress}
               onChange={(e) => set("schoolAddress", e.target.value)}
             />
@@ -509,7 +500,7 @@ export default function SchoolRecycling() {
                     onChange={() => toggleMaterial(m)}
                     className="h-4 w-4 rounded accent-[#2E7D32]"
                   />
-                  {m}
+                  {m === "Others" ? t("othersOpt") : t(MATERIAL_KEY[m] || m)}
                 </label>
               ))}
             </div>
@@ -522,7 +513,7 @@ export default function SchoolRecycling() {
                 <input
                   id="s-others"
                   className={field}
-                  placeholder="e.g. Tetrapak drink cartons"
+                  placeholder={t("phOthers")}
                   value={form.othersSpecify}
                   onChange={(e) => set("othersSpecify", e.target.value)}
                 />
@@ -546,7 +537,7 @@ export default function SchoolRecycling() {
                   inputMode="decimal"
                   disabled={form.weightUnknown}
                   className={`${field} disabled:opacity-50`}
-                  placeholder="e.g. 500"
+                  placeholder={t("phQty")}
                   value={form.qtyValue}
                   onChange={(e) => set("qtyValue", e.target.value)}
                 />
@@ -580,7 +571,7 @@ export default function SchoolRecycling() {
                     id="s-volume"
                     rows={2}
                     className="w-full p-4 rounded-2xl bg-background border border-border focus:border-primary"
-                    placeholder="e.g. 2 classrooms of stacked newspaper, ~40 bags"
+                    placeholder={t("phVolume")}
                     value={form.volumeDesc}
                     onChange={(e) => set("volumeDesc", e.target.value)}
                   />
@@ -619,36 +610,7 @@ export default function SchoolRecycling() {
             </fieldset>
           </div>
 
-          {/* Vehicle size (sec 18.2 + 18.7) */}
-          <fieldset>
-            <legend className="text-sm font-semibold mb-2 flex items-center gap-2">
-              <Truck className="w-4 h-4 text-primary" /> {t("fVehicle")} *
-            </legend>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {VEHICLES.map(({ value, labelKey }) => (
-                <label
-                  key={value}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-2xl border text-sm cursor-pointer transition-colors ${
-                    form.vehicleSize === value
-                      ? "border-primary bg-primary/5 font-semibold"
-                      : "border-border"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="vehicleSize"
-                    value={value}
-                    checked={form.vehicleSize === value}
-                    onChange={() => set("vehicleSize", value)}
-                    className="h-4 w-4 accent-[#2E7D32]"
-                  />
-                  {t(labelKey)}
-                </label>
-              ))}
-            </div>
-            {errText("vehicleSize")}
-            <p className="text-xs text-muted-foreground mt-2">{t("vehNote")}</p>
-          </fieldset>
+          {/* Vehicle selection removed — administrator reviews load suitability. */}
 
           <div>
             <span className="block text-sm font-semibold mb-2">
@@ -675,7 +637,7 @@ export default function SchoolRecycling() {
                 htmlFor="s-photo"
                 className="flex items-center justify-center gap-2 h-14 rounded-2xl border border-dashed border-border text-sm font-semibold text-muted-foreground cursor-pointer hover:border-primary hover:text-primary transition"
               >
-                <Camera className="w-5 h-5" /> Take / upload a photo
+                <Camera className="w-5 h-5" /> {t("phTakePhoto")}
               </label>
             )}
             <input
@@ -696,7 +658,7 @@ export default function SchoolRecycling() {
               id="s-notes"
               rows={3}
               className="w-full p-4 rounded-2xl bg-background border border-border focus:border-primary"
-              placeholder="Gate access, storage location, stairs/lift, best time to call… (optional)"
+              placeholder={t("phNotes")}
               value={form.notes}
               onChange={(e) => set("notes", e.target.value)}
             />

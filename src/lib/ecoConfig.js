@@ -33,6 +33,32 @@ export const WEIGHT_BONUS_TIERS = [
   [10000, 100],
 ];
 
+// Single-submission medal tiers (display + trophy qualification only —
+// NOT a challenge system: no dates, missions, XP or progress tracking).
+// Bronze 50kg, Silver 80kg, Gold 100kg.
+export const MEDAL_TIERS = [
+  { key: "bronze", minGrams: 50000 },
+  { key: "silver", minGrams: 80000 },
+  { key: "gold", minGrams: 100000 },
+];
+
+/** Highest medal tier reached by a single submission of `maxGrams` (or null). */
+export function medalFor(maxGrams) {
+  let reached = null;
+  for (const tier of MEDAL_TIERS) {
+    if (maxGrams >= tier.minGrams) reached = tier;
+  }
+  return reached;
+}
+
+/** Next medal tier above `maxGrams` (or null when Gold is reached). */
+export function nextMedalFor(maxGrams) {
+  for (const tier of MEDAL_TIERS) {
+    if (maxGrams < tier.minGrams) return tier;
+  }
+  return null;
+}
+
 export const MAX_GRAMS_PER_LINE = 100000; // 100 kg per material line
 export const MAX_GRAMS_PER_SUBMISSION = 1000000; // 1 tonne per submission
 

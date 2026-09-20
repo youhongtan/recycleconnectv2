@@ -97,6 +97,31 @@ module.exports = async function handler(req, res) {
   if (redeemed.includes(reward.id)) {
     return fail(409, 'Already redeemed.');
   }
+
+  // Tier trophies: single-submission qualification + first-come single stock.
+  // Qualification is computed from the user's OWN logs (never trusted input).
+  let isTierClaim = false;
+  if (reward.tier_min_grams != null) {
+    isTierClaim = true;
+    const logsRes = await fetch(
+      `${url}/rest/v1/recycle_logs?user_id=eq.${userId}&select=client_submission_id,weight_g&limit=2000`,
+      { headers: H }
+    );
+    if (!logsRes.ok) return fail(500, 'Could not verify tier qualification.');
+    const sums = {};
+    for (const row of await logsRes.json()) {
+      const key = row.client_submission_id || row.id || Math.random();
+      sums[key] = (sums[key] || 0) + (Number(row.weight_g) || 0);
+    }
+    const best = Math.max(0, ...Object.values(sums));
+    if (best < reward.tier_min_grams) {
+      return fail(403, `Reach ${Number(reward.tier_min_grams).toLocaleString()}g in one submission to qualify for ${reward.name}. Your best so far: ${Math.round(best).toLocaleString()}g.`);
+    }
+    if (reward.stock_left != null && reward.stock_left <= 0) {
+      return fail(409, `${reward.name} is already claimed — a new round opens soon.`);
+    }
+  }
+
   const balance = profile.eco_points || 0;
   if (balance < cost) {
     return fail(400, 'Not enough Eco Points');
@@ -114,7 +139,7 @@ module.exports = async function handler(req, res) {
   if (!upd.ok) return fail(500, 'Could not complete redemption.');
 
   const kind = reward.reward_kind === 'impact' ? 'impact_redemption' : 'reward_redemption';
-  const label = reward.reward_kind === 'impact' ? 'Impact contribution' : 'Eco reward redemption';
+  const label = reward.reward_kind === 'impact' ? 'Impact contribution' : isTierClaim ? 'Tier trophy claimed' : 'Eco reward redemption';
   await fetch(`${url}/rest/v1/eco_point_transactions`, {
     method: 'POST',
     headers: { ...H, Prefer: 'return=minimal' },
@@ -127,9 +152,25 @@ module.exports = async function handler(req, res) {
     }]),
   });
 
+  // Tier trophies: record the holder, then immediately open a fresh round
+  // (stock back to 1) so the trophy keeps rotating first-come-first-served.
+  // The claim itself is guarded above by the stock check + one-per-user rule.
+  if (isTierClaim && rewardRowId) {
+    await fetch(`${url}/rest/v1/rewards?id=eq.${rewardRowId}`, {
+      method: 'PATCH',
+      headers: { ...H, Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        stock_left: 1,
+        holder_name: profile.display_name || 'Eco Hero',
+        holder_at: new Date().toISOString(),
+      }),
+    });
+  }
+
   return send(res, 200, {
     redeemed: true,
     reward: { id: reward.id, name: reward.name, cost },
     newBalance,
+    holder: profile.display_name || 'Eco Hero',
   });
 };

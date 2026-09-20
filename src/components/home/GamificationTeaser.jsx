@@ -1,13 +1,12 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Trophy, Flame, Target, Gift } from "lucide-react";
+import { Trophy, Target, Gift } from "lucide-react";
 import Reveal from "@/components/common/Reveal";
 import SectionHeading from "@/components/common/SectionHeading";
 import { useI18n } from "@/lib/i18n";
 
 const ITEMS = [
   { icon: Target, titleKey: "gamBonusTitle", bodyKey: "gamBonusBody" },
-  { icon: Flame, titleKey: "gamStTitle", bodyKey: "gamStBody" },
   { icon: Trophy, titleKey: "gamLbTitle", bodyKey: "gamLbBody" },
   { icon: Gift, titleKey: "gamRwTitle", bodyKey: "gamRwBody" },
 ];
@@ -21,7 +20,7 @@ export default function GamificationTeaser() {
         title={t("gamTitle")}
         subtitle={t("gamSubtitle")}
       />
-      <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {ITEMS.map((it, i) => (
           <Reveal key={it.titleKey} delay={i * 0.08}>
             <div className="h-full glass orbital soft-shadow p-7 hover:-translate-y-1 transition-transform duration-500">

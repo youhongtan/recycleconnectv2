@@ -1,7 +1,9 @@
 import React from "react";
 import { MapPin, Clock, Phone, Navigation, Coins, Star, Truck } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 export default function CentreCard({ centre, highlight = false }) {
+  const { t } = useI18n();
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     `${centre.name} ${centre.address}`
   )}`;
@@ -36,9 +38,9 @@ export default function CentreCard({ centre, highlight = false }) {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-        {centre.pays_cash && <span className="inline-flex items-center gap-1"><Coins className="w-3.5 h-3.5" /> Pays cash</span>}
-        {centre.reward_points && <span className="inline-flex items-center gap-1"><Star className="w-3.5 h-3.5" /> Reward points</span>}
-        {centre.home_collection && <span className="inline-flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> Home collection</span>}
+        {centre.pays_cash && <span className="inline-flex items-center gap-1"><Coins className="w-3.5 h-3.5" /> {t("ccCash")}</span>}
+        {centre.reward_points && <span className="inline-flex items-center gap-1"><Star className="w-3.5 h-3.5" /> {t("ccPoints")}</span>}
+        {centre.home_collection && <span className="inline-flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> {t("ccHome")}</span>}
       </div>
 
       <a
@@ -47,7 +49,7 @@ export default function CentreCard({ centre, highlight = false }) {
         rel="noreferrer"
         className="mt-6 h-12 rounded-full bg-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition"
       >
-        <Navigation className="w-4 h-4" /> Navigate
+        <Navigation className="w-4 h-4" /> {t("ccNav")}
       </a>
     </article>
   );

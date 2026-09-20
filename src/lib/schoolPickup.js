@@ -90,9 +90,9 @@ export function scoreCentre(centre, request) {
   const reasons = [];
   if (matched.length > 0) {
     score += matched.length * 5;
-    reasons.push(`Accepts ${matched.join(", ")}`);
+    reasons.push({ k: "mat", mats: matched });
   } else {
-    reasons.push("Custom materials — to confirm with school");
+    reasons.push({ k: "custom" });
   }
 
   const schoolRaw = normalise(request.schoolAddress);
@@ -104,32 +104,32 @@ export function scoreCentre(centre, request) {
   if (cCity && cityHit(schoolTokens, schoolRaw, cCity)) {
     score += 6;
     tier = "city";
-    reasons.push(`In ${centre.city}`);
+    reasons.push({ k: "city", place: centre.city });
   } else if (cState && stateHit(schoolTokens, schoolRaw, cState)) {
     score += 3;
     tier = "state";
-    reasons.push(`In ${centre.state}`);
+    reasons.push({ k: "state", place: centre.state });
   } else if (
     cState &&
     (NEARBY_STATES[cState] || []).some((n) => stateHit(schoolTokens, schoolRaw, n))
   ) {
     score += 2;
     tier = "nearby";
-    reasons.push(`Nearby (${centre.state})`);
+    reasons.push({ k: "nearby", place: centre.state });
   }
 
   const pickupVerified = centre.home_collection === true;
   if (pickupVerified) {
     score += 4;
-    reasons.push("Offers collection service");
+    reasons.push({ k: "pickup" });
   }
   if (centre.pays_cash) {
     score += 1;
-    reasons.push("Pays cash for recyclables");
+    reasons.push({ k: "cash" });
   }
   if ((centre.rating || 0) >= 4.5) {
     score += 1;
-    reasons.push(`Highly rated (${centre.rating})`);
+    reasons.push({ k: "rating", rating: centre.rating });
   }
 
   return {

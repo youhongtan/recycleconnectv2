@@ -9,6 +9,18 @@ export const MATERIALS = [
   "Cooking Oil",
 ];
 
+// Display labels only — matching/storage always use the English values above.
+export const MATERIAL_KEY = {
+  Plastic: "matPlastic",
+  Paper: "matPaper",
+  Glass: "matGlass",
+  Metal: "matMetal",
+  Electronics: "matElec",
+  Batteries: "matBatt",
+  Clothes: "matClothes",
+  "Cooking Oil": "matOil",
+};
+
 export const PLASTIC_TYPES = [
   {
     code: "1",
@@ -163,10 +175,10 @@ export const LEARN_TOPICS = [
 ];
 
 export const POLLUTION_STATS = [
-  { label: "Tonnes of waste per day", value: 39000, suffix: "" },
-  { label: "Recycling rate", value: 35.4, suffix: "%", decimals: 1 },
-  { label: "Landfills near capacity", value: 138, suffix: "" },
-  { label: "Plastic to ocean yearly (tonnes)", value: 73000, suffix: "" },
+  { labelKey: "polStat1L", value: 39000, suffix: "", noteKey: "polStat1N" },
+  { labelKey: "polStat2L", value: 37.9, suffix: "%", decimals: 1 },
+  { labelKey: "polStat3L", value: 40, suffix: "%" },
+  { labelKey: "polStat4L", value: 137, suffix: "", noteKey: "polStat4N" },
 ];
 
 export const WASTE_COMPOSITION = [
@@ -178,15 +190,9 @@ export const WASTE_COMPOSITION = [
   { name: "Metal & Glass", value: 11 },
 ];
 
-export const RECYCLING_TREND = [
-  { year: "2018", rate: 24.6 },
-  { year: "2019", rate: 28.1 },
-  { year: "2020", rate: 30.7 },
-  { year: "2021", rate: 31.5 },
-  { year: "2022", rate: 33.2 },
-  { year: "2023", rate: 35.4 },
-  { year: "2025", rate: 40.0 },
-];
+// Removed: unverified yearly recycling-rate series (old 35.4% etc.).
+// The Pollution page now shows only the 2024 rate (37.9%). Do not re-add
+// yearly values without a verified source for EVERY year displayed.
 
 export const ECO_POINTS = {
   Plastic: 5,

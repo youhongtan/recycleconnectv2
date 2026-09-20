@@ -32,27 +32,27 @@ export default function Footer() {
           </div>
         </div>
         <div>
-          <h3 className="font-semibold mb-3">Explore</h3>
+          <h3 className="font-semibold mb-3">{t("ftExplore")}</h3>
           <ul className="space-y-2 text-muted-foreground">
-            <li><Link to="/learn" className="hover:text-primary">Learn</Link></li>
-            <li><Link to="/finder" className="hover:text-primary">Centre Finder</Link></li>
-            <li><Link to="/assistant" className="hover:text-primary">AI Assistant</Link></li>
-            <li><Link to="/pollution" className="hover:text-primary">Malaysia Pollution</Link></li>
-            <li><Link to="/rewards" className="hover:text-primary">Eco Rewards</Link></li>
+            <li><Link to="/learn" className="hover:text-primary">{t("learn")}</Link></li>
+            <li><Link to="/finder" className="hover:text-primary">{t("finder")}</Link></li>
+            <li><Link to="/assistant" className="hover:text-primary">{t("assistant")}</Link></li>
+            <li><Link to="/pollution" className="hover:text-primary">{t("pollution")}</Link></li>
+            <li><Link to="/rewards" className="hover:text-primary">{t("rewards")}</Link></li>
           </ul>
         </div>
         <div>
-          <h3 className="font-semibold mb-3">Community</h3>
+          <h3 className="font-semibold mb-3">{t("ftCommunity")}</h3>
           <ul className="space-y-2 text-muted-foreground">
-            <li><Link to="/profile" className="hover:text-primary">My Profile</Link></li>
-            <li><Link to="/about" className="hover:text-primary">About Us</Link></li>
-            <li><Link to="/contact" className="hover:text-primary">Contact</Link></li>
-            <li><Link to="/contact#faq" className="hover:text-primary">FAQ</Link></li>
+            <li><Link to="/profile" className="hover:text-primary">{t("profile")}</Link></li>
+            <li><Link to="/about" className="hover:text-primary">{t("about")}</Link></li>
+            <li><Link to="/contact" className="hover:text-primary">{t("contact")}</Link></li>
+            <li><Link to="/contact#faq" className="hover:text-primary">{t("ftFaq")}</Link></li>
           </ul>
         </div>
       </div>
       <div className="border-t border-border/60 py-6 text-center text-sm text-muted-foreground">
-        Made by <span className="font-semibold">You Hong Tan</span> &middot; © {new Date().getFullYear()} RecycleConnect Malaysia. Built for a greener tomorrow.
+        {t("ftMade")} <span className="font-semibold">You Hong Tan</span> &middot; © {new Date().getFullYear()} {t("ftRights")}
       </div>
     </footer>
   );

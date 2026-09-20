@@ -100,7 +100,8 @@ export default function Rewards() {
   }, []);
 
   const ecoRewards = useMemo(
-    () => rewards.filter((r) => (r.reward_kind || "eco") === "eco"),
+    // Tier trophies live on the Challenges page (qualification-gated).
+    () => rewards.filter((r) => (r.reward_kind || "eco") === "eco" && r.tier_min_grams == null),
     [rewards]
   );
   const impactRewards = useMemo(
