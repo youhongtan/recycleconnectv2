@@ -201,12 +201,7 @@ module.exports = async function handler(req, res) {
   const profs = await profRes.json();
   const profile = profs[0];
   if (!profile) return fail('Profile not found.');
-  const badges = new Set(profile.badges || []);
-  const newBadges = [];
-  if (!badges.has('First Recycling Action')) { badges.add('First Recycling Action'); newBadges.push('First Recycling Action'); }
-  if ((profile.items_recycled || 0) + perLine.length >= 50 && !badges.has('Earth Guardian')) {
-    badges.add('Earth Guardian'); newBadges.push('Earth Guardian');
-  }
+  // Badges system removed — profile updates carry points and counts only.
   const upd = await fetch(`${url}/rest/v1/eco_profiles?id=eq.${profile.id}`, {
     method: 'PATCH',
     headers: { ...H, Prefer: 'return=representation' },
@@ -215,7 +210,6 @@ module.exports = async function handler(req, res) {
       eco_points: (profile.eco_points || 0) + totalCredited,
       items_recycled: (profile.items_recycled || 0) + perLine.length,
       plastic_saved_kg: (profile.plastic_saved_kg || 0) + totalGrams / 1000,
-      badges: [...badges],
     }),
   });
   if (!upd.ok) return fail('Could not credit Eco Points.');
@@ -228,7 +222,6 @@ module.exports = async function handler(req, res) {
     totalGrams,
     perLine: perLine.map((l) => ({ material: l.material, grams: l.grams, baseCredited: l.baseCredited })),
     newBalance: updated.eco_points,
-    newBadges,
     duplicate: false,
   });
 };

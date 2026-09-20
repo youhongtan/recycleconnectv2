@@ -56,7 +56,7 @@ async function main() {
 
   for (const c of centres) {
     const qrId = generateQrId(c.name, c.id)
-    const checkInUrl = `https://recycleconnect.vercel.app/check-in?centre=${c.id}`
+    const checkInUrl = `https://recycleconnectv2.vercel.app/check-in?centre=${c.id}`
     const imageUrl =
       `https://api.qrserver.com/v1/create-qr-code/?size=800x800&data=${encodeURIComponent(checkInUrl)}&bgcolor=ffffff&color=1a4d2e`
 

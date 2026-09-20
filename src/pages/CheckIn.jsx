@@ -93,7 +93,6 @@ export default function CheckIn() {
         grams: data.totalGrams,
         level: p ? getLevel(p.xp) : getLevel((profile?.xp || 0) + data.awarded),
         balance: p ? p.eco_points : (profile?.eco_points || 0) + data.awarded,
-        newBadges: data.newBadges || [],
       });
       setSubmitId(crypto.randomUUID());
       setGrams({});
@@ -130,14 +129,6 @@ export default function CheckIn() {
         {t("ciBase")}: +{result.base} • {t("ciBonus")}: +{result.bonus} • {quote && result.grams.toLocaleString()} g
       </p>
       <p className="text-muted-foreground mb-6">{t("ciLevel")} {result.level} • {result.balance} {t("ecoPointsUnit")}</p>
-      {result.newBadges.length > 0 && (
-        <div className="mb-6">
-          <p className="text-sm font-semibold mb-2">{t("ciNewBadges")}</p>
-          <div className="flex gap-2 justify-center flex-wrap">
-            {result.newBadges.map((b) => <span key={b} className="px-3 py-1 rounded-full bg-primary/12 text-primary text-sm font-medium">🏅 {b}</span>)}
-          </div>
-        </div>
-      )}
       <div className="flex gap-3 justify-center flex-wrap">
         <Link to="/profile" className="h-12 px-6 rounded-full bg-primary text-primary-foreground font-semibold inline-flex items-center">{t("ciViewProfile")}</Link>
         <Link to="/rewards" className="h-12 px-6 rounded-full glass font-semibold inline-flex items-center">{t("rewards")}</Link>

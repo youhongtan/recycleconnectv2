@@ -15,7 +15,16 @@ export default function Leaderboard() {
 
   useEffect(() => {
     (async () => {
-      const { data: all } = await supabase.from('eco_profiles').select('*').limit(100);
+      // Only public profiles appear. If the is_public column is missing
+      // (migration not run yet), fall back to the unfiltered list.
+      let all = null;
+      const filtered = await supabase.from('eco_profiles').select('*').eq('is_public', true).limit(100);
+      if (filtered.error && /is_public|column/i.test(filtered.error.message || "")) {
+        const retry = await supabase.from('eco_profiles').select('*').limit(100);
+        all = retry.data;
+      } else {
+        all = filtered.data;
+      }
       all?.sort((a, b) => (b.eco_points || 0) - (a.eco_points || 0));
       setProfiles(all || []);
       const { profile: p } = await getOrCreateProfile();

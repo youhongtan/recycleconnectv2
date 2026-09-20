@@ -9,6 +9,7 @@ export default function Settings() {
   const { lang, setLang, t } = useI18n();
   const { user, profile, logout } = useAuth();
   const [name, setName] = useState("");
+  const [isPublic, setIsPublic] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -16,6 +17,7 @@ export default function Settings() {
   useEffect(() => {
     if (profile) {
       setName(profile.display_name || "");
+      setIsPublic(profile.is_public !== false);
     }
     setLoading(false);
   }, [profile]);
@@ -23,7 +25,7 @@ export default function Settings() {
   const save = async () => {
     setSaving(true);
     if (profile) {
-      await supabase.from('eco_profiles').update({ display_name: name }).eq('id', profile.id);
+      await supabase.from('eco_profiles').update({ display_name: name, is_public: isPublic }).eq('id', profile.id);
     }
     if (user) {
       await supabase.auth.updateUser({ data: { full_name: name } });
@@ -62,6 +64,26 @@ export default function Settings() {
           {Object.entries(LANGS).map(([code, info]) => (
             <button key={code} onClick={() => setLang(code)} className={`h-12 rounded-2xl font-medium transition ${lang === code ? "bg-primary text-primary-foreground" : "glass"}`}>
               {info.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="glass orbital p-6 space-y-4">
+        <div className="flex items-center gap-2 text-primary"><Globe className="w-5 h-5" /><h2 className="font-semibold">{t("sePrivacy")}</h2></div>
+        <div className="grid sm:grid-cols-2 gap-2" role="radiogroup" aria-label={t("sePrivacy")}>
+          {[
+            { value: true, label: t("sePublic") },
+            { value: false, label: t("sePrivate") },
+          ].map((o) => (
+            <button
+              key={String(o.value)}
+              type="button"
+              role="radio"
+              aria-checked={isPublic === o.value}
+              onClick={() => setIsPublic(o.value)}
+              className={`min-h-12 px-4 py-3 rounded-2xl text-sm font-medium text-left transition ${isPublic === o.value ? "bg-primary text-primary-foreground" : "glass hover:bg-primary/10"}`}
+            >
+              {o.label}
             </button>
           ))}
         </div>
