@@ -6,7 +6,8 @@ import { getOrCreateProfile } from "@/lib/ecoProfile";
 import { MATERIALS_GRAMS, MATERIAL_RATES, validateGrams, quoteSubmission } from "@/lib/ecoConfig";
 import { MATERIAL_KEY } from "@/lib/recycleData";
 import { useI18n } from "@/lib/i18n";
-import { MapPin, Clock, Phone, CheckCircle2, Loader2, Sparkles, ScanLine } from "lucide-react";
+import { MapPin, Clock, Phone, CheckCircle2, Loader2, Sparkles, ScanLine, QrCode } from "lucide-react";
+import QrScanner from "@/components/checkin/QrScanner";
 
 export default function CheckIn() {
   const { t } = useI18n();
@@ -21,6 +22,23 @@ export default function CheckIn() {
   const [result, setResult] = useState(null);
   const [formError, setFormError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState("");
+
+  const handleScan = (text) => {
+    setScanning(false);
+    setScanError("");
+    let id = null;
+    try {
+      id = new URL(text, window.location.origin).searchParams.get("centre");
+    } catch { /* not a URL */ }
+    if (!id && /^[0-9a-f-]{36}$/i.test((text || "").trim())) id = text.trim();
+    if (id) {
+      window.location.href = `/check-in?centre=${id}`;
+    } else {
+      setScanError(t("ciScanInvalid"));
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -109,7 +127,18 @@ export default function CheckIn() {
       <ScanLine className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
       <h1 className="text-2xl font-bold mb-2">{t("ciNoCentreT")}</h1>
       <p className="text-muted-foreground mb-6">{t("ciNoCentreB")}</p>
-      <Link to="/finder" className="inline-flex items-center gap-2 h-12 px-6 rounded-full bg-primary text-primary-foreground font-semibold">{t("ciFindCentre")}</Link>
+      {scanError && <p role="alert" className="text-sm text-destructive mb-4">{scanError}</p>}
+      <div className="flex gap-3 justify-center flex-wrap">
+        <button
+          type="button"
+          onClick={() => setScanning(true)}
+          className="inline-flex items-center gap-2 h-14 px-8 rounded-full bg-primary text-primary-foreground font-semibold text-lg hover:brightness-110 active:scale-[0.98] transition"
+        >
+          <QrCode className="w-5 h-5" /> {t("ciScanBtn")}
+        </button>
+        <Link to="/finder" className="inline-flex items-center gap-2 h-14 px-8 rounded-full glass font-semibold text-lg hover:bg-primary/10 transition">{t("ciFindCentre")}</Link>
+      </div>
+      {scanning && <QrScanner onResult={handleScan} onClose={() => setScanning(false)} />}
     </div>
   );
 

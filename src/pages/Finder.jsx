@@ -6,7 +6,6 @@ import Reveal from "@/components/common/Reveal";
 import MaterialFilters from "@/components/finder/MaterialFilters";
 import CentreCard from "@/components/finder/CentreCard";
 import CentreMap from "@/components/finder/CentreMap";
-import RecommendForm from "@/components/finder/RecommendForm";
 import { useI18n } from "@/lib/i18n";
 
 export default function Finder() {
@@ -90,17 +89,6 @@ export default function Finder() {
           )}
         </div>
       )}
-
-      <section id="recommend" className="mt-24 scroll-mt-32">
-        <SectionHeading
-          eyebrow={t("fdRecEyebrow")}
-          title={t("fdRecTitle")}
-          subtitle={t("fdRecSub")}
-        />
-        <div className="mt-12">
-          <RecommendForm centres={centres} />
-        </div>
-      </section>
     </div>
   );
 }

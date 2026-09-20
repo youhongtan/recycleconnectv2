@@ -17,6 +17,7 @@ import Learn from '@/pages/Learn';
 import Pollution from '@/pages/Pollution';
 import Assistant from '@/pages/Assistant';
 import Finder from '@/pages/Finder';
+import Recommend from '@/pages/Recommend';
 import Profile from '@/pages/Profile';
 import About from '@/pages/About';
 import Contact from '@/pages/Contact';
@@ -31,6 +32,7 @@ import UserManagement from '@/pages/admin/UserManagement';
 import CentreManagement from '@/pages/admin/CentreManagement';
 import QRManagement from '@/pages/admin/QRManagement';
 import Messages from '@/pages/admin/Messages';
+import RewardManagement from '@/pages/admin/RewardManagement';
 import SchoolRequests from '@/pages/admin/SchoolRequests';
 import StaffCheckIn from '@/pages/admin/StaffCheckIn';
 
@@ -67,6 +69,7 @@ const AuthenticatedApp = () => {
         <Route path="/pollution" element={<Pollution />} />
         <Route path="/assistant" element={<Assistant />} />
         <Route path="/finder" element={<Finder />} />
+        <Route path="/recommend" element={<Recommend />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
@@ -84,6 +87,7 @@ const AuthenticatedApp = () => {
         <Route path="/admin/qr" element={<QRManagement />} />
         <Route path="/admin/check-in" element={<StaffCheckIn />} />
         <Route path="/admin/messages" element={<Messages />} />
+        <Route path="/admin/rewards" element={<RewardManagement />} />
         <Route path="/admin/school-requests" element={<SchoolRequests />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

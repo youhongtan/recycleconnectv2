@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Leaf, Instagram, Facebook, Youtube, Mail } from "lucide-react";
+import { Leaf } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 export default function Footer() {
@@ -16,20 +16,6 @@ export default function Footer() {
             <span className="font-bold text-lg">RecycleConnect</span>
           </div>
           <p className="mt-4 text-muted-foreground max-w-sm">{t("mission")}</p>
-          <div className="mt-5 flex gap-3">
-            <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram" className="h-10 w-10 rounded-full glass grid place-items-center hover:bg-primary/10">
-              <Instagram className="w-4 h-4" />
-            </a>
-            <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook" className="h-10 w-10 rounded-full glass grid place-items-center hover:bg-primary/10">
-              <Facebook className="w-4 h-4" />
-            </a>
-            <a href="https://youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube" className="h-10 w-10 rounded-full glass grid place-items-center hover:bg-primary/10">
-              <Youtube className="w-4 h-4" />
-            </a>
-            <a href="mailto:hello@recycleconnect.my" aria-label="Email us" className="h-10 w-10 rounded-full glass grid place-items-center hover:bg-primary/10">
-              <Mail className="w-4 h-4" />
-            </a>
-          </div>
         </div>
         <div>
           <h3 className="font-semibold mb-3">{t("ftExplore")}</h3>

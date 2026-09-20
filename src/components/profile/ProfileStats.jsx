@@ -1,7 +1,7 @@
 import React from "react";
 import Counter from "@/components/common/Counter";
 import { useI18n } from "@/lib/i18n";
-import { Flame, Recycle, Cloud, Package } from "lucide-react";
+import { Recycle, Cloud, Package } from "lucide-react";
 
 export const levelFromXp = (xp) => Math.floor(xp / 500) + 1;
 
@@ -15,7 +15,6 @@ export default function ProfileStats({ profile }) {
     { icon: Package, label: t("psItems"), value: profile.items_recycled || 0 },
     { icon: Recycle, label: t("psPlastic"), value: profile.plastic_saved_kg || 0, decimals: 1 },
     { icon: Cloud, label: t("psCo2"), value: profile.co2_reduced_kg || 0, decimals: 1 },
-    { icon: Flame, label: t("psStreak"), value: profile.streak_days || 0 },
   ];
 
   return (

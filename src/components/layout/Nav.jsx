@@ -16,6 +16,7 @@ const PRIMARY = [
 
 const MORE = [
   { to: "/pollution", key: "pollution" },
+  { to: "/recommend", key: "recommend" },
   { to: "/challenges", key: "challenges" },
   { to: "/leaderboard", key: "leaderboard" },
   { to: "/profile", key: "profile" },
