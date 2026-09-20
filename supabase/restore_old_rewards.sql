@@ -7,6 +7,30 @@
 -- old redeemed IDs will dangle harmlessly (those items simply show as
 -- redeemable again). This affects the old site only.
 -- NEVER run this in the NEW V2 project.
+--
+-- FULL V2 FOOTPRINT AUDIT (old project) — what else V2 left behind, and why
+-- each item is INVISIBLE to the old website (old code never reads it):
+--   Tables: school_pickup_requests, school_pickup_messages, eco_point_transactions
+--   Columns: recycle_logs(weight_g, points_base, points_bonus, client_submission_id),
+--     rewards(reward_kind, impact_note, tier_min_grams, stock_total, stock_left,
+--     holder_name, holder_at), school_pickup_requests(+ review/rec columns),
+--     eco_profiles(is_public)
+--   Policies: public_read_leaderboard (+ V2 insert/admin policies), storage
+--     uploads INSERT/SELECT (old site never uploads — harmless)
+--   challenges table: NEVER touched.
+-- The ONLY visible change was rewards rows/prices — fixed by the rebuild above.
+--
+-- OPTIONAL deep cleanup: drop the V2-only tables entirely. ONLY do this after
+-- confirming they hold no submissions you need:
+--   SELECT count(*) FROM school_pickup_requests;
+--   SELECT count(*) FROM school_pickup_messages;
+--   SELECT count(*) FROM eco_point_transactions;
+-- If all zero, you may run:
+--   DROP TABLE IF EXISTS school_pickup_messages;
+--   DROP TABLE IF EXISTS school_pickup_requests;
+--   DROP TABLE IF EXISTS eco_point_transactions;
+-- (Leave added COLUMNS in place — dropping them risks nothing gained and the
+-- statements are harder to undo. Old code ignores unknown columns.)
 
 DELETE FROM rewards;
 
