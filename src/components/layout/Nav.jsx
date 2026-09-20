@@ -21,6 +21,7 @@ const MORE = [
   { to: "/leaderboard", key: "leaderboard" },
   { to: "/profile", key: "profile" },
   { to: "/schools", key: "schools" },
+  { to: "/check-in", key: "checkin" },
   { to: "/settings", key: "settings" },
   { to: "/about", key: "about" },
   { to: "/contact", key: "contact" },
