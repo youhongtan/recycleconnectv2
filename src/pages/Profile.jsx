@@ -54,6 +54,22 @@ export default function Profile() {
     );
   }
 
+  // Defensive: profile row may be missing (e.g. RLS misconfiguration) while
+  // the session exists. Never crash — offer a retry instead.
+  if (!profile) {
+    return (
+      <div className="max-w-3xl mx-auto px-6 py-20 text-center">
+        <p className="text-muted-foreground mb-6">{t("submitFail")}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="h-12 px-8 rounded-full bg-primary text-primary-foreground font-semibold hover:brightness-110 transition"
+        >
+          {t("retryBtn")}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-6 pb-10 space-y-8">
       <SectionHeading
