@@ -2075,9 +2075,7 @@ INSERT INTO recycling_centres (id, name, description, address, city, state, lat,
   'Community Recycling Centre',
   FALSE, FALSE, FALSE,
   3.6
-);
-
-,
+),
 (gen_random_uuid(), 'Tzu Chi Recycling Centre Penang (Jalan Perak)', 'Tzu Chi recycling point at Jalan Perak, Penang.', '20 Jalan Perak, 10150 George Town', 'George Town', 'Penang', 5.4192, 100.3285, 'Tue–Sun 8am–12pm', '04-261 1122', ARRAY['Paper', 'Plastic', 'Glass', 'Metal', 'Electronics', 'Clothes'], 'NGO Recycling Centre', FALSE, FALSE, FALSE, 4.0),
 (gen_random_uuid(), 'Seberang Jaya Recycling Centre', 'Community recycling centre in Seberang Jaya.', 'Jalan Seberang Jaya, 13700 Perai', 'Perai', 'Penang', 5.3925, 100.4012, 'Mon–Sat 8am–5pm', '04-397 1122', ARRAY['Paper', 'Plastic', 'Metal', 'Glass'], 'Community Recycling Centre', FALSE, FALSE, FALSE, 3.6),
 (gen_random_uuid(), 'Simpang Ampat Recycling Centre', 'Community recycling drop-off in Simpang Ampat.', 'Jalan Simpang Ampat, 14100 Simpang Ampat', 'Simpang Ampat', 'Penang', 5.2812, 100.4852, 'Mon–Fri 9am–5pm', '04-588 1122', ARRAY['Paper', 'Plastic', 'Metal'], 'Community Recycling Centre', FALSE, FALSE, FALSE, 3.5),
