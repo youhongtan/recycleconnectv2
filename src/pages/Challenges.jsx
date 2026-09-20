@@ -51,12 +51,12 @@ export default function Challenges() {
       if (user) {
         const { data: logs } = await supabase
           .from("recycle_logs")
-          .select("client_submission_id,weight_g")
+          .select("id,client_submission_id,weight_g")
           .eq("user_id", user.id)
           .limit(2000);
         const sums = {};
         for (const row of logs || []) {
-          const key = row.client_submission_id || Math.random();
+          const key = row.client_submission_id || row.id;
           sums[key] = (sums[key] || 0) + (Number(row.weight_g) || 0);
         }
         setBest(Math.round(Math.max(0, ...Object.values(sums))));

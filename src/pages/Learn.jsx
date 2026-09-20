@@ -16,6 +16,12 @@ export default function Learn() {
         subtitle={t("learnSub")}
       />
 
+      <Reveal delay={0.05}>
+        <p className="mt-8 mx-auto max-w-3xl text-center text-sm text-muted-foreground rounded-2xl border border-border bg-card px-6 py-4">
+          {t("learnNote")}
+        </p>
+      </Reveal>
+
       <Reveal delay={0.1}>
         <Image
           src="https://media.base44.com/images/public/6a67017a886f99eed0748a3d/0c8a97536_generated_27547b85.png"

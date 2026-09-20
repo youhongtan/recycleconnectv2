@@ -104,7 +104,7 @@ module.exports = async function handler(req, res) {
   if (reward.tier_min_grams != null) {
     isTierClaim = true;
     const logsRes = await fetch(
-      `${url}/rest/v1/recycle_logs?user_id=eq.${userId}&select=client_submission_id,weight_g&limit=2000`,
+      `${url}/rest/v1/recycle_logs?user_id=eq.${userId}&select=id,client_submission_id,weight_g&limit=2000`,
       { headers: H }
     );
     if (!logsRes.ok) return fail(500, 'Could not verify tier qualification.');
