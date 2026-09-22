@@ -28,9 +28,11 @@ function fetchTimeout(url, opts, ms) {
   return p.finally(() => clearTimeout(t));
 }
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
 const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-3.6-flash'];
+
+// Vercel Hobby kills serverless functions at ~60s, so the whole scan must
+// finish well inside that: 20s per model attempt, single pass, no sleeps.
+// A slow single model can no longer eat the entire budget and get us killed.
 
 function dataUrlToInline(imageData) {
   const m = (imageData || '').match(/^data:(image\/[a-z0-9+.-]+);base64,(.+)$/);
@@ -57,7 +59,7 @@ async function geminiVision(apiKey, textPrompt, imageData) {
           // Short JSON-only answers generate much faster than long prose.
           generationConfig: { maxOutputTokens: 500, temperature: 0.2 },
         }),
-      }, 90000);
+      }, 20000);
       const data = await r.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
       if (text) return { text };
@@ -99,19 +101,17 @@ module.exports = async function handler(req, res) {
   const textPrompt = prompt + '\n\nYou MUST respond with ONLY valid JSON. No markdown, no explanation. Use exactly these keys: item, material, recyclable, instructions, tip.' + langRule;
 
   try {
-    // Two full passes: a single overloaded-model hiccup no longer kills the
-    // scan — the retry usually lands within seconds on the same picture.
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const vision = await geminiVision(geminiKey, textPrompt, imageData);
-      if (vision.text) {
-        try {
-          const parsed = extractJson(vision.text);
-          return send(res, 200, { ...schema, ...parsed });
-        } catch {
-          console.error('Scan JSON parse failed, retrying…');
-        }
+    // Single pass over both models. (A second pass was removed: combined
+    // with slow models it pushed total time past Vercel's ~60s function
+    // limit and got the function killed — worse than a fast honest failure.)
+    const vision = await geminiVision(geminiKey, textPrompt, imageData);
+    if (vision.text) {
+      try {
+        const parsed = extractJson(vision.text);
+        return send(res, 200, { ...schema, ...parsed });
+      } catch {
+        console.error('Scan JSON parse failed.');
       }
-      if (attempt === 0) await sleep(3000);
     }
     return send(res, 500, { error: 'AI is busy right now. Please try again in a moment.' });
   } catch (error) {
