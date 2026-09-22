@@ -67,7 +67,7 @@ export default function ScanPanel() {
           setError(t("seMin"));
         }
       } else {
-        setError(`${t("seFail")}${msg || t("submitFail")}`);
+        setError(t("seFail").trim());
       }
     }
     setLoading(false);

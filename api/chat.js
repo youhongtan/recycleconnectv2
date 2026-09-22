@@ -1,20 +1,38 @@
+// RecycleConnect V2 — POST /api/chat
+//
+// Verified-good model lineup (probed live, Sep 2026):
+//   Groq:  qwen/qwen3.8-27b (fast primary ~300ms; old llama + qwen3.6 retired)
+//   Gemini: gemini-3.6-flash, gemini-3.5-flash (fallbacks; 2.5-flash retired,
+//           3.7/3.8-flash frequently overloaded)
+// Strategy: Groq first with a short timeout (typical answer <1s), then Gemini
+// fallbacks. Never surfaces raw provider errors — always a short message.
+
 function isComplex(prompt) {
   const complex = ['explain', 'how does', 'why', 'compare', 'difference', 'tell me about', 'what is the process', 'elaborate', 'in detail'];
-  return complex.some((w) => prompt.toLowerCase().includes(w));
+  return complex.some((w) => (prompt || '').toLowerCase().includes(w));
 }
 
-const GROQ_MODELS = ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'openai/gpt-oss-20b'];
-const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-2.5-flash'];
+const GROQ_MODELS = ['qwen/qwen3.8-27b'];
+const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-3.5-flash'];
 
-// Reply in the user's app language (sent as `lang` by the frontend).
 function langInstruction(lang) {
   if (lang === 'ms') return 'Respond ENTIRELY in Bahasa Melayu (Malay).';
   if (lang === 'zh') return '必须完全用简体中文回答 (Respond ENTIRELY in Simplified Chinese).';
   return 'Respond in English.';
 }
 
+async function fetchTimeout(url, opts, ms) {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms);
+  try {
+    return await fetch(url, { ...opts, signal: c.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function callGroq(prompt, apiKey, model, lang) {
-  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const r = await fetchTimeout('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({
@@ -25,18 +43,18 @@ async function callGroq(prompt, apiKey, model, lang) {
       ],
       max_tokens: 300,
     }),
-  });
+  }, 15000);
   return r.json();
 }
 
 async function callGeminiChat(prompt, apiKey, model, lang) {
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+  const r = await fetchTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: `You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer accurately in 3-5 short sentences. ${langInstruction(lang)}\n\nQuestion: ${prompt}` }] }],
     }),
-  });
+  }, 25000);
   return r.json();
 }
 
@@ -46,10 +64,6 @@ function groqAnswer(data) {
 
 function geminiAnswer(data) {
   return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-}
-
-function modelUnavailable(msg) {
-  return /no longer|not found|not available|does not exist|model.*(?:unavailable|deprecated)/i.test(msg);
 }
 
 function send(res, code, data) {
@@ -79,32 +93,28 @@ module.exports = async function handler(req, res) {
 
   const groqKey = process.env.VITE_GROQ_API_KEY;
   const geminiKey = process.env.VITE_GEMINI_API_KEY;
-  const errors = [];
+  if (!groqKey && !geminiKey) return send(res, 500, { error: 'AI is not configured right now.' });
 
-  const order = isComplex(prompt)
-    ? [...GEMINI_MODELS.map((m) => ['gemini', m]), ...GROQ_MODELS.map((m) => ['groq', m])]
-    : [...GROQ_MODELS.map((m) => ['groq', m]), ...GEMINI_MODELS.map((m) => ['gemini', m])];
+  // Groq first (fast); Gemini fallbacks after. Complex questions try Gemini 3.6 first.
+  const order = [];
+  if (isComplex(prompt)) {
+    if (geminiKey) order.push(['gemini', GEMINI_MODELS[0]]);
+    if (groqKey) order.push(...GROQ_MODELS.map((m) => ['groq', m]));
+    if (geminiKey) order.push(...GEMINI_MODELS.slice(1).map((m) => ['gemini', m]));
+  } else {
+    if (groqKey) order.push(...GROQ_MODELS.map((m) => ['groq', m]));
+    if (geminiKey) order.push(...GEMINI_MODELS.map((m) => ['gemini', m]));
+  }
 
   for (const [provider, model] of order) {
     try {
-      const data = provider === 'groq' && groqKey
+      const data = provider === 'groq'
         ? await callGroq(prompt, groqKey, model, lang)
-        : provider === 'gemini' && geminiKey
-          ? await callGeminiChat(prompt, geminiKey, model, lang)
-          : null;
-      if (!data) continue;
-
+        : await callGeminiChat(prompt, geminiKey, model, lang);
       const answer = provider === 'groq' ? groqAnswer(data) : geminiAnswer(data);
       if (answer) return send(res, 200, { answer });
-
-      const errMsg = data?.error?.message || 'empty response';
-      if (modelUnavailable(errMsg)) continue;
-      errors.push(`${provider}:${model} → ${errMsg}`);
-    } catch (e) {
-      errors.push(`${provider}:${model} → ${e.message}`);
-    }
+    } catch { /* next model */ }
   }
 
-  if (!groqKey && !geminiKey) return send(res, 500, { error: 'No AI API keys configured.' });
-  return send(res, 500, { error: `All AI models failed: ${errors.join(' | ') || 'unknown error'}` });
+  return send(res, 500, { error: 'AI is busy right now. Please try again in a moment.' });
 };
