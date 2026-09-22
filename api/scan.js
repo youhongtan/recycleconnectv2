@@ -28,6 +28,8 @@ function fetchTimeout(url, opts, ms) {
   return p.finally(() => clearTimeout(t));
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-3.5-flash'];
 
 function dataUrlToInline(imageData) {
@@ -97,10 +99,19 @@ module.exports = async function handler(req, res) {
   const textPrompt = prompt + '\n\nYou MUST respond with ONLY valid JSON. No markdown, no explanation. Use exactly these keys: item, material, recyclable, instructions, tip.' + langRule;
 
   try {
-    const vision = await geminiVision(geminiKey, textPrompt, imageData);
-    if (vision.text) {
-      const parsed = extractJson(vision.text);
-      return send(res, 200, { ...schema, ...parsed });
+    // Two full passes: a single overloaded-model hiccup no longer kills the
+    // scan — the retry usually lands within seconds on the same picture.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const vision = await geminiVision(geminiKey, textPrompt, imageData);
+      if (vision.text) {
+        try {
+          const parsed = extractJson(vision.text);
+          return send(res, 200, { ...schema, ...parsed });
+        } catch {
+          console.error('Scan JSON parse failed, retrying…');
+        }
+      }
+      if (attempt === 0) await sleep(3000);
     }
     return send(res, 500, { error: 'AI is busy right now. Please try again in a moment.' });
   } catch (error) {
