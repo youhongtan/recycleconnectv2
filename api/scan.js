@@ -68,6 +68,32 @@ async function geminiVision(apiKey, textPrompt, imageData) {
   return { error: true };
 }
 
+// Pollinations.ai vision fallback — free, no key, OpenAI image_url shape.
+async function pollinationsVision(textPrompt, imageData) {
+  const m = (imageData || '').match(/^data:(image\/[a-z0-9+.-]+);(base64,.*)$/);
+  if (!m) return { error: true };
+  try {
+    const r = await fetchTimeout('https://text.pollinations.ai/openai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'openai',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: textPrompt },
+            { type: 'image_url', image_url: { url: imageData } },
+          ],
+        }],
+      }),
+    }, 45000);
+    const data = await r.json();
+    const text = data?.choices?.[0]?.message?.content || '';
+    if (text) return { text };
+  } catch { /* fall through */ }
+  return { error: true };
+}
+
 function extractJson(text) {
   text = (text || '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '').trim();
   const firstBrace = text.indexOf('{');
@@ -101,10 +127,10 @@ module.exports = async function handler(req, res) {
   const textPrompt = prompt + '\n\nYou MUST respond with ONLY valid JSON. No markdown, no explanation. Use exactly these keys: item, material, recyclable, instructions, tip.' + langRule;
 
   try {
-    // Single pass over both models. (A second pass was removed: combined
-    // with slow models it pushed total time past Vercel's ~60s function
-    // limit and got the function killed — worse than a fast honest failure.)
-    const vision = await geminiVision(geminiKey, textPrompt, imageData);
+    // Single pass: Gemini models first, then free keyless Pollinations.
+    // Total worst case stays inside Vercel's ~60s function limit.
+    let vision = await geminiVision(geminiKey, textPrompt, imageData);
+    if (!vision.text) vision = await pollinationsVision(textPrompt, imageData);
     if (vision.text) {
       try {
         const parsed = extractJson(vision.text);

@@ -54,8 +54,26 @@ async function callGeminiChat(prompt, apiKey, model, lang) {
     body: JSON.stringify({
       contents: [{ parts: [{ text: `You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer accurately in 3-5 short sentences. ${langInstruction(lang)}\n\nQuestion: ${prompt}` }] }],
     }),
-  }, 25000);
+  }, 20000);
   return r.json();
+}
+
+// Pollinations.ai — free, no key, OpenAI-compatible (verified live).
+// Same shape as Groq; max_tokens omitted (their gateway prefers it that way).
+async function callPollinations(prompt, lang) {
+  const r = await fetchTimeout('https://text.pollinations.ai/openai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'openai',
+      messages: [
+        { role: 'system', content: `You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer simply, accurately and in 3-5 short sentences. ${langInstruction(lang)}` },
+        { role: 'user', content: `Question: ${prompt}` },
+      ],
+    }),
+  }, 40000);
+  const data = await r.json();
+  return data?.choices?.[0]?.message?.content || '';
 }
 
 function groqAnswer(data) {
@@ -95,14 +113,17 @@ module.exports = async function handler(req, res) {
   const geminiKey = process.env.VITE_GEMINI_API_KEY;
   if (!groqKey && !geminiKey) return send(res, 500, { error: 'AI is not configured right now.' });
 
-  // Groq first (fast); Gemini fallbacks after. Complex questions try Gemini 3.6 first.
+  // Groq first (fast); Pollinations (free, keyless); Gemini fallbacks after.
+  // Complex questions try Gemini 3.6 first.
   const order = [];
   if (isComplex(prompt)) {
     if (geminiKey) order.push(['gemini', GEMINI_MODELS[0]]);
     if (groqKey) order.push(...GROQ_MODELS.map((m) => ['groq', m]));
+    order.push(['pollinations', 'openai']);
     if (geminiKey) order.push(...GEMINI_MODELS.slice(1).map((m) => ['gemini', m]));
   } else {
     if (groqKey) order.push(...GROQ_MODELS.map((m) => ['groq', m]));
+    order.push(['pollinations', 'openai']);
     if (geminiKey) order.push(...GEMINI_MODELS.map((m) => ['gemini', m]));
   }
 
@@ -110,8 +131,12 @@ module.exports = async function handler(req, res) {
     try {
       const data = provider === 'groq'
         ? await callGroq(prompt, groqKey, model, lang)
-        : await callGeminiChat(prompt, geminiKey, model, lang);
-      const answer = provider === 'groq' ? groqAnswer(data) : geminiAnswer(data);
+        : provider === 'pollinations'
+          ? { polli: await callPollinations(prompt, lang) }
+          : await callGeminiChat(prompt, geminiKey, model, lang);
+      const answer = provider === 'groq' ? groqAnswer(data)
+        : provider === 'pollinations' ? (data.polli || '')
+        : geminiAnswer(data);
       if (answer) return send(res, 200, { answer });
     } catch { /* next model */ }
   }
