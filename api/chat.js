@@ -12,8 +12,8 @@ function isComplex(prompt) {
   return complex.some((w) => (prompt || '').toLowerCase().includes(w));
 }
 
-const GROQ_MODELS = ['qwen/qwen3.8-27b'];
-const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-3.5-flash'];
+const GROQ_MODELS = ['qwen/qwen3.8-27b', 'allam-2-7b'];
+const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash'];
 
 function langInstruction(lang) {
   if (lang === 'ms') return 'Respond ENTIRELY in Bahasa Melayu (Malay).';

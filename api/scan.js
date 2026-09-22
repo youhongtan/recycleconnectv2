@@ -52,6 +52,8 @@ async function geminiVision(apiKey, textPrompt, imageData) {
               { inline_data: inline },
             ],
           }],
+          // Short JSON-only answers generate much faster than long prose.
+          generationConfig: { maxOutputTokens: 500, temperature: 0.2 },
         }),
       }, 90000);
       const data = await r.json();
