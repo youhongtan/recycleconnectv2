@@ -30,7 +30,7 @@ function fetchTimeout(url, opts, ms) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-3.5-flash'];
+const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-3.6-flash'];
 
 function dataUrlToInline(imageData) {
   const m = (imageData || '').match(/^data:(image\/[a-z0-9+.-]+);base64,(.+)$/);
