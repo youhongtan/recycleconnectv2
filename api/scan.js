@@ -43,6 +43,7 @@ function dataUrlToInline(imageData) {
 async function geminiVision(apiKey, textPrompt, imageData) {
   const inline = dataUrlToInline(imageData);
   if (!inline) throw new Error('Invalid image data');
+  const texts = [];
 
   for (const model of GEMINI_MODELS) {
     try {
@@ -62,10 +63,10 @@ async function geminiVision(apiKey, textPrompt, imageData) {
       }, 12000);
       const data = await r.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      if (text) return { text };
+      if (text) texts.push(text);
     } catch { /* next model */ }
   }
-  return { error: true };
+  return { texts };
 }
 
 // Pollinations.ai vision fallback — free, no key, OpenAI image_url shape.
@@ -151,23 +152,38 @@ module.exports = async function handler(req, res) {
     : '';
 
   const schema = { item: '', material: '', recyclable: '', instructions: '', tip: '' };
-  const textPrompt = prompt + '\n\nYou MUST respond with ONLY valid JSON. No markdown, no explanation. Use exactly these keys: item, material, recyclable, instructions, tip.' + langRule;
+  const textPrompt = prompt + '\n\nYou MUST respond with ONLY valid JSON. No markdown, no explanation. Use exactly these keys: item, material, recyclable, instructions, tip.' + langRule + ' Example: {"item": "plastic bottle", "material": "Plastic", "recyclable": "Yes", "instructions": "Rinse it.", "tip": "Recycle me."}';
 
   try {
-    // Scout first (~1s when healthy), then Gemini, then free Pollinations.
-    // Budget: ~30 + 12 + 12 + 25s worst case — fits Vercel's ~60s limit.
-    let vision = { error: true };
-    if (hasCf) vision = await scoutVision(cfAccount, cfToken, textPrompt, imageData);
-    if (!vision.text && geminiKey) vision = await geminiVision(geminiKey, textPrompt, imageData);
-    if (!vision.text) vision = await pollinationsVision(textPrompt, imageData);
-    if (vision.text) {
+    // Collect every candidate answer, then accept the first one that parses
+    // into REAL content (>=2 non-empty keys). An empty-but-valid JSON no
+    // longer counts as success — we move to the next provider instead.
+    const candidates = [];
+    if (hasCf) {
+      const v = await scoutVision(cfAccount, cfToken, textPrompt, imageData);
+      if (v.text) candidates.push(['scout', v.text]);
+    }
+    if (geminiKey) {
       try {
-        const parsed = extractJson(vision.text);
-        return send(res, 200, { ...schema, ...parsed });
+        const g = await geminiVision(geminiKey, textPrompt, imageData);
+        for (const t of g.texts || []) candidates.push(['gemini', t]);
+      } catch { /* next provider */ }
+    }
+    const p = await pollinationsVision(textPrompt, imageData);
+    if (p.text) candidates.push(['pollinations', p.text]);
+
+    for (const [who, text] of candidates) {
+      try {
+        const parsed = extractJson(text);
+        const filled = ['item', 'material', 'recyclable', 'instructions', 'tip']
+          .filter((k) => parsed[k] && String(parsed[k]).trim()).length;
+        if (filled >= 2) return send(res, 200, { ...schema, ...parsed });
+        console.error(`Scan candidate from ${who} parsed but empty.`);
       } catch {
-        console.error('Scan JSON parse failed.');
+        console.error(`Scan candidate from ${who} was not JSON.`);
       }
     }
+    if (candidates.length === 0) console.error('Scan: all providers failed.');
     return send(res, 500, { error: 'AI is busy right now. Please try again in a moment.' });
   } catch (error) {
     console.error('Scan API error:', error.message);
