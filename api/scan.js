@@ -40,6 +40,61 @@ function dataUrlToInline(imageData) {
   return { mime_type: m[1], data: m[2] };
 }
 
+// Groq fetches image URLs server-side: data: URLs and redirecting links get
+// HTTP 400 ("failed to retrieve media"). So we park the photo in our own
+// public `uploads` bucket (direct 200, no redirect) and hand Groq that URL.
+// Temp files are deleted best-effort afterwards.
+async function uploadTempImage(supabaseUrl, anonKey, imageData) {
+  const inline = dataUrlToInline(imageData);
+  if (!inline) return null;
+  const ext = inline.mime_type.includes('png') ? 'png' : 'jpg';
+  const path = `scan-tmp/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const up = await fetch(`${supabaseUrl}/storage/v1/object/uploads/${path}`, {
+    method: 'POST',
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+      'Content-Type': inline.mime_type,
+    },
+    body: Buffer.from(inline.data, 'base64'),
+  });
+  if (!up.ok) return null;
+  return {
+    publicUrl: `${supabaseUrl}/storage/v1/object/public/uploads/${path}`,
+    path,
+  };
+}
+
+async function deleteTempImage(supabaseUrl, anonKey, path) {
+  try {
+    await fetch(`${supabaseUrl}/storage/v1/object/uploads/${path}`, {
+      method: 'DELETE',
+      headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+    });
+  } catch { /* best-effort cleanup */ }
+}
+
+async function groqUrlVision(groqKey, publicImageUrl, jsonInstruction) {
+  const r = await fetchTimeout('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+    body: JSON.stringify({
+      model: 'qwen/qwen3.8-27b',
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: jsonInstruction },
+          { type: 'image_url', image_url: { url: publicImageUrl } },
+        ],
+      }],
+    }),
+  }, 25000);
+  const data = await r.json();
+  const text = data?.choices?.[0]?.message?.content || '';
+  if (text) return { text };
+  return { error: true };
+}
+
 async function geminiVision(apiKey, textPrompt, imageData) {
   const inline = dataUrlToInline(imageData);
   if (!inline) throw new Error('Invalid image data');
@@ -140,10 +195,13 @@ module.exports = async function handler(req, res) {
   if (!prompt) return send(res, 400, { error: 'Prompt is required' });
 
   const geminiKey = process.env.VITE_GEMINI_API_KEY;
+  const url = process.env.VITE_SUPABASE_URL;
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  const groqKey = process.env.VITE_GROQ_API_KEY;
   const cfToken = process.env.CLOUDFLARE_API_TOKEN;
   const cfAccount = process.env.CLOUDFLARE_ACCOUNT_ID;
   const hasCf = !!(cfToken && cfAccount);
-  if (!geminiKey && !hasCf) return send(res, 500, { error: 'AI is not configured right now.' });
+  if (!geminiKey && !hasCf && !groqKey) return send(res, 500, { error: 'AI is not configured right now.' });
 
   // Keep JSON keys in English, but write the VALUES in the user's language.
   const langRule =
@@ -156,9 +214,19 @@ module.exports = async function handler(req, res) {
 
   try {
     // Collect every candidate answer, then accept the first one that parses
-    // into REAL content (>=2 non-empty keys). An empty-but-valid JSON no
-    // longer counts as success — we move to the next provider instead.
+    // into REAL content (>=2 non-empty keys). Order: Groq+public URL (~2s),
+    // Scout, Gemini, Pollinations. Empty JSON never counts as success.
     const candidates = [];
+    if (groqKey && anonKey && url) {
+      const tmp = await uploadTempImage(url, anonKey, imageData);
+      if (tmp) {
+        try {
+          const v = await groqUrlVision(groqKey, tmp.publicUrl, textPrompt);
+          if (v.text) candidates.push(['groq-url', v.text]);
+        } catch { /* next provider */ }
+        await deleteTempImage(url, anonKey, tmp.path);
+      }
+    }
     if (hasCf) {
       const v = await scoutVision(cfAccount, cfToken, textPrompt, imageData);
       if (v.text) candidates.push(['scout', v.text]);
