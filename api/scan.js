@@ -30,9 +30,9 @@ function fetchTimeout(url, opts, ms) {
 
 const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-3.6-flash'];
 
-// Vercel Hobby kills serverless functions at ~60s, so the whole scan must
-// finish well inside that: 20s per model attempt, single pass, no sleeps.
-// A slow single model can no longer eat the entire budget and get us killed.
+  // Budget: Vercel Hobby kills functions at ~60s. Gemini gets 12s each
+  // (a healthy answer lands in ~10s; longer means jammed), Pollinations 25s.
+  // Worst case ≈ 12+12+25 = 49s + overhead: always inside the limit.
 
 function dataUrlToInline(imageData) {
   const m = (imageData || '').match(/^data:(image\/[a-z0-9+.-]+);base64,(.+)$/);
@@ -59,7 +59,7 @@ async function geminiVision(apiKey, textPrompt, imageData) {
           // Short JSON-only answers generate much faster than long prose.
           generationConfig: { maxOutputTokens: 500, temperature: 0.2 },
         }),
-      }, 20000);
+      }, 12000);
       const data = await r.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
       if (text) return { text };
@@ -86,7 +86,7 @@ async function pollinationsVision(textPrompt, imageData) {
           ],
         }],
       }),
-    }, 45000);
+    }, 25000);
     const data = await r.json();
     const text = data?.choices?.[0]?.message?.content || '';
     if (text) return { text };
