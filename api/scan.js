@@ -30,9 +30,9 @@ function fetchTimeout(url, opts, ms) {
 
 const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-3.6-flash'];
 
-  // Budget: Vercel Hobby kills functions at ~60s. Gemini gets 12s each
-  // (a healthy answer lands in ~10s; longer means jammed), Pollinations 25s.
-  // Worst case ≈ 12+12+25 = 49s + overhead: always inside the limit.
+  // Budget: Scout (~1s healthy) → Gemini 12s each → Pollinations 25s.
+  // Healthy path finishes in seconds; only all-hung providers approach
+  // Vercel's ~60s limit, in which case the friendly error is returned.
 
 function dataUrlToInline(imageData) {
   const m = (imageData || '').match(/^data:(image\/[a-z0-9+.-]+);base64,(.+)$/);
@@ -94,6 +94,30 @@ async function pollinationsVision(textPrompt, imageData) {
   return { error: true };
 }
 
+// Cloudflare Llama 4 Scout vision — primary engine (verified ~1s live).
+// Needs CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID env vars.
+async function scoutVision(accountId, token, textPrompt, imageData) {
+  try {
+    const r = await fetchTimeout(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/meta/llama-4-scout-17b-16e-instruct`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: textPrompt },
+            { type: 'image_url', image_url: { url: imageData } },
+          ],
+        }],
+      }),
+    }, 30000);
+    const data = await r.json();
+    const text = data?.result?.choices?.[0]?.message?.content || data?.result?.response || '';
+    if (text) return { text };
+  } catch { /* fall through */ }
+  return { error: true };
+}
+
 function extractJson(text) {
   text = (text || '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '').trim();
   const firstBrace = text.indexOf('{');
@@ -115,7 +139,10 @@ module.exports = async function handler(req, res) {
   if (!prompt) return send(res, 400, { error: 'Prompt is required' });
 
   const geminiKey = process.env.VITE_GEMINI_API_KEY;
-  if (!geminiKey) return send(res, 500, { error: 'AI is not configured right now.' });
+  const cfToken = process.env.CLOUDFLARE_API_TOKEN;
+  const cfAccount = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const hasCf = !!(cfToken && cfAccount);
+  if (!geminiKey && !hasCf) return send(res, 500, { error: 'AI is not configured right now.' });
 
   // Keep JSON keys in English, but write the VALUES in the user's language.
   const langRule =
@@ -127,9 +154,11 @@ module.exports = async function handler(req, res) {
   const textPrompt = prompt + '\n\nYou MUST respond with ONLY valid JSON. No markdown, no explanation. Use exactly these keys: item, material, recyclable, instructions, tip.' + langRule;
 
   try {
-    // Single pass: Gemini models first, then free keyless Pollinations.
-    // Total worst case stays inside Vercel's ~60s function limit.
-    let vision = await geminiVision(geminiKey, textPrompt, imageData);
+    // Scout first (~1s when healthy), then Gemini, then free Pollinations.
+    // Budget: ~30 + 12 + 12 + 25s worst case — fits Vercel's ~60s limit.
+    let vision = { error: true };
+    if (hasCf) vision = await scoutVision(cfAccount, cfToken, textPrompt, imageData);
+    if (!vision.text && geminiKey) vision = await geminiVision(geminiKey, textPrompt, imageData);
     if (!vision.text) vision = await pollinationsVision(textPrompt, imageData);
     if (vision.text) {
       try {

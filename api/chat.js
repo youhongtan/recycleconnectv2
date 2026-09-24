@@ -59,7 +59,6 @@ async function callGeminiChat(prompt, apiKey, model, lang) {
 }
 
 // Pollinations.ai — free, no key, OpenAI-compatible (verified live).
-// Same shape as Groq; max_tokens omitted (their gateway prefers it that way).
 async function callPollinations(prompt, lang) {
   const r = await fetchTimeout('https://text.pollinations.ai/openai', {
     method: 'POST',
@@ -74,6 +73,23 @@ async function callPollinations(prompt, lang) {
   }, 40000);
   const data = await r.json();
   return data?.choices?.[0]?.message?.content || '';
+}
+
+// Cloudflare Workers AI — Llama 4 Scout (verified live, ~1s).
+// Needs CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID env vars.
+async function callScoutChat(prompt, accountId, token, lang) {
+  const r = await fetchTimeout(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/meta/llama-4-scout-17b-16e-instruct`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({
+      messages: [
+        { role: 'system', content: `You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer simply, accurately and in 3-5 short sentences. ${langInstruction(lang)}` },
+        { role: 'user', content: `Question: ${prompt}` },
+      ],
+    }),
+  }, 25000);
+  const data = await r.json();
+  return data?.result?.choices?.[0]?.message?.content || data?.result?.response || '';
 }
 
 function groqAnswer(data) {
@@ -111,18 +127,23 @@ module.exports = async function handler(req, res) {
 
   const groqKey = process.env.VITE_GROQ_API_KEY;
   const geminiKey = process.env.VITE_GEMINI_API_KEY;
-  if (!groqKey && !geminiKey) return send(res, 500, { error: 'AI is not configured right now.' });
+  const cfToken = process.env.CLOUDFLARE_API_TOKEN;
+  const cfAccount = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const hasCf = !!(cfToken && cfAccount);
+  if (!groqKey && !geminiKey && !hasCf) return send(res, 500, { error: 'AI is not configured right now.' });
 
-  // Groq first (fast); Pollinations (free, keyless); Gemini fallbacks after.
-  // Complex questions try Gemini 3.6 first.
+  // Groq first (fastest); Scout second (~1s, reliable); Pollinations free;
+  // Gemini fallbacks after. Complex questions try Gemini 3.6 first.
   const order = [];
   if (isComplex(prompt)) {
     if (geminiKey) order.push(['gemini', GEMINI_MODELS[0]]);
     if (groqKey) order.push(...GROQ_MODELS.map((m) => ['groq', m]));
+    if (hasCf) order.push(['scout', 'scout']);
     order.push(['pollinations', 'openai']);
     if (geminiKey) order.push(...GEMINI_MODELS.slice(1).map((m) => ['gemini', m]));
   } else {
     if (groqKey) order.push(...GROQ_MODELS.map((m) => ['groq', m]));
+    if (hasCf) order.push(['scout', 'scout']);
     order.push(['pollinations', 'openai']);
     if (geminiKey) order.push(...GEMINI_MODELS.map((m) => ['gemini', m]));
   }
@@ -131,10 +152,13 @@ module.exports = async function handler(req, res) {
     try {
       const data = provider === 'groq'
         ? await callGroq(prompt, groqKey, model, lang)
-        : provider === 'pollinations'
-          ? { polli: await callPollinations(prompt, lang) }
-          : await callGeminiChat(prompt, geminiKey, model, lang);
+        : provider === 'scout'
+          ? { scout: await callScoutChat(prompt, cfAccount, cfToken, lang) }
+          : provider === 'pollinations'
+            ? { polli: await callPollinations(prompt, lang) }
+            : await callGeminiChat(prompt, geminiKey, model, lang);
       const answer = provider === 'groq' ? groqAnswer(data)
+        : provider === 'scout' ? (data.scout || '')
         : provider === 'pollinations' ? (data.polli || '')
         : geminiAnswer(data);
       if (answer) return send(res, 200, { answer });
