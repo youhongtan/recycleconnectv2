@@ -16,7 +16,7 @@ module.exports = defineConfig(({ mode }) => {
     return complex.some((w) => prompt.toLowerCase().includes(w));
   }
 
-  const GROQ_MODELS = ['qwen/qwen3.8-27b', 'allam-2-7b'];
+  const GROQ_MODELS = ['qwen/qwen3.8-27b', 'openai/gpt-oss-120b', 'allam-2-7b'];
   const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash'];
 
   function modelUnavailable(msg) {
@@ -30,17 +30,18 @@ module.exports = defineConfig(({ mode }) => {
   }
 
   async function callGroq(prompt, model, lang) {
+    const body = {
+      model,
+      messages: [
+        { role: 'system', content: `You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer simply, accurately and in 3-5 short sentences. ${langInstruction(lang)}` },
+        { role: 'user', content: `Question: ${prompt}` },
+      ],
+    };
+    if (!model.includes('gpt-oss')) body.max_tokens = 300;
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${requireKey('VITE_GROQ_API_KEY')}` },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: `You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer simply, accurately and in 3-5 short sentences. ${langInstruction(lang)}` },
-          { role: 'user', content: `Question: ${prompt}` },
-        ],
-        max_tokens: 300,
-      }),
+      body: JSON.stringify(body),
     });
     return r.json();
   }

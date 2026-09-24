@@ -12,7 +12,7 @@ function isComplex(prompt) {
   return complex.some((w) => (prompt || '').toLowerCase().includes(w));
 }
 
-const GROQ_MODELS = ['qwen/qwen3.8-27b', 'allam-2-7b'];
+const GROQ_MODELS = ['qwen/qwen3.8-27b', 'openai/gpt-oss-120b', 'allam-2-7b'];
 const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash'];
 
 function langInstruction(lang) {
@@ -32,18 +32,21 @@ async function fetchTimeout(url, opts, ms) {
 }
 
 async function callGroq(prompt, apiKey, model, lang) {
+  // GPT-OSS reasons separately: a max_tokens cap can starve the final
+  // content (empty replies), so it is omitted for those models.
+  const body = {
+    model,
+    messages: [
+      { role: 'system', content: `You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer simply, accurately and in 3-5 short sentences. ${langInstruction(lang)}` },
+      { role: 'user', content: `Question: ${prompt}` },
+    ],
+  };
+  if (!model.includes('gpt-oss')) body.max_tokens = 300;
   const r = await fetchTimeout('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: `You are the RecycleConnect Eco Assistant helping people in Malaysia. Answer simply, accurately and in 3-5 short sentences. ${langInstruction(lang)}` },
-        { role: 'user', content: `Question: ${prompt}` },
-      ],
-      max_tokens: 300,
-    }),
-  }, 15000);
+    body: JSON.stringify(body),
+  }, 20000);
   return r.json();
 }
 
