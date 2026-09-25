@@ -215,13 +215,41 @@ module.exports = async function handler(req, res) {
   if (!upd.ok) return fail('Could not credit Eco Points.');
   const updated = (await upd.json())[0];
 
+  // Read-your-write verification: re-read the row and confirm the balance
+  // actually stuck. Reports the truth instead of assuming it.
+  let persisted = false;
+  let verifiedBalance = null;
+  try {
+    const verifyRes = await fetch(
+      `${url}/rest/v1/eco_profiles?id=eq.${profile.id}&select=eco_points,xp`,
+      { headers: H }
+    );
+    const verifyRow = (await verifyRes.json())[0];
+    verifiedBalance = verifyRow ? verifyRow.eco_points : null;
+    persisted = verifiedBalance === newBalance;
+    if (!persisted) {
+      console.error(
+        `PERSIST MISMATCH profile=${profile.id} before=${profile.eco_points} attempted=${newBalance} verified=${verifiedBalance}`
+      );
+    }
+  } catch (e) {
+    console.error('PERSIST CHECK failed:', e.message);
+  }
+
   return send(res, 200, {
     awarded: totalCredited,
     baseCredited,
     bonus,
     totalGrams,
     perLine: perLine.map((l) => ({ material: l.material, grams: l.grams, baseCredited: l.baseCredited })),
-    newBalance: updated.eco_points,
+    newBalance: verifiedBalance ?? newBalance,
+    persisted,
+    debug: {
+      profileId: profile.id,
+      before: profile.eco_points,
+      attempted: newBalance,
+      verified: verifiedBalance,
+    },
     duplicate: false,
   });
 };
