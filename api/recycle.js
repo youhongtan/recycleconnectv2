@@ -117,7 +117,9 @@ module.exports = async function handler(req, res) {
   const H = supaHeaders(writeKey, writeToken);
   const fail = (msg) => send(res, 500, { error: msg });
 
-  // --- 4. Idempotency: already-processed submission returns original result
+  // --- 4. Idempotency: already-processed submission returns original result.
+  // Duplicate replays ALSO return the live balance + debug, so the client
+  // can never display a stale number on a replayed success.
   const dupRes = await fetch(
     `${url}/rest/v1/recycle_logs?client_submission_id=eq.${encodeURIComponent(clientSubmissionId)}&select=id,points_base,points_bonus`,
     { headers: H }
@@ -127,9 +129,22 @@ module.exports = async function handler(req, res) {
     if (dup.length > 0) {
       const base = dup.reduce((s, r) => s + (r.points_base || 0), 0);
       const bon = dup.reduce((s, r) => s + (r.points_bonus || 0), 0);
+      let liveBalance = null;
+      try {
+        const bRes = await fetch(
+          `${url}/rest/v1/eco_profiles?user_id=eq.${userId}&select=eco_points`,
+          { headers: H }
+        );
+        const bRows = await bRes.json();
+        if (bRows[0]) liveBalance = bRows[0].eco_points;
+      } catch { /* display falls back */ }
+      console.log(`DUPLICATE submission ${clientSubmissionId}: replaying award, liveBalance=${liveBalance}`);
       return send(res, 200, {
         awarded: base + bon, baseCredited: base, bonus: bon,
         totalGrams, duplicate: true,
+        newBalance: liveBalance,
+        persisted: liveBalance != null,
+        debug: { duplicate: true, key: clientSubmissionId, liveBalance },
       });
     }
   }
@@ -212,7 +227,11 @@ module.exports = async function handler(req, res) {
       plastic_saved_kg: (profile.plastic_saved_kg || 0) + totalGrams / 1000,
     }),
   });
-  if (!upd.ok) return fail('Could not credit Eco Points.');
+  if (!upd.ok) {
+    const t = await upd.text();
+    console.error(`PATCH profile failed: HTTP ${upd.status} ${t.slice(0, 200)}`);
+    return fail('Could not credit Eco Points.');
+  }
   const updated = (await upd.json())[0];
 
   // Read-your-write verification: re-read the row and confirm the balance
