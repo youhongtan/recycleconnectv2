@@ -104,13 +104,15 @@ export default function CheckIn() {
         .eq('user_id', user.id)
         .maybeSingle();
       if (p) setProfile(p);
+      // Display the SERVER's authoritative new balance, not a refetch that
+      // can return a stale row while replicas/RLS settle.
       setResult({
         awarded: data.awarded,
         base: data.baseCredited,
         bonus: data.bonus,
         grams: data.totalGrams,
         level: p ? getLevel(p.xp) : getLevel((profile?.xp || 0) + data.awarded),
-        balance: p ? p.eco_points : (profile?.eco_points || 0) + data.awarded,
+        balance: typeof data.newBalance === "number" ? data.newBalance : (p ? p.eco_points : (profile?.eco_points || 0) + data.awarded),
       });
       setSubmitId(crypto.randomUUID());
       setGrams({});
