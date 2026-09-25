@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/api/supabaseClient";
-import { Loader2, Search, CheckCircle2, MapPin, Coins, User } from "lucide-react";
+import { Loader2, Search, CheckCircle2, Coins, User } from "lucide-react";
 
 export default function StaffCheckIn() {
   const [centres, setCentres] = useState([]);
@@ -21,8 +21,8 @@ export default function StaffCheckIn() {
     setQuery(q);
     if (q.length < 2) { setUsers([]); return; }
     const { data } = await supabase
-      .from("eco_profiles")
-      .select("id, display_name, email, eco_points, xp")
+      .from('eco_profiles')
+      .select('id, user_id, display_name, email, eco_points, xp')
       .ilike("email", `%${q}%`);
     setUsers(data || []);
   };
@@ -33,8 +33,10 @@ export default function StaffCheckIn() {
     setError("");
     const centre = centres.find((c) => c.id === selectedCentre);
     try {
+      // recycle_logs.user_id references auth.users — use the AUTH id, not the
+      // eco_profiles row id (that mismatch caused the FK violation).
       const { error: logErr } = await supabase.from("recycle_logs").insert({
-        user_id: selectedUser.id,
+        user_id: selectedUser.user_id,
         material: "Mixed",
         quantity: 1,
         weight_kg: 0,
@@ -46,25 +48,28 @@ export default function StaffCheckIn() {
       if (logErr) throw logErr;
 
       const { data: profile } = await supabase
-        .from("eco_profiles")
-        .select("*")
-        .eq("id", selectedUser.id)
+        .from('eco_profiles')
+        .select('*')
+        .eq('id', selectedUser.id)
         .single();
 
-      const badges = new Set(profile.badges || []);
-      badges.add("First Recycling Action");
-      if ((profile.items_recycled || 0) + 1 >= 50) badges.add("Earth Guardian");
-
       const { error: updateErr } = await supabase
-        .from("eco_profiles")
+        .from('eco_profiles')
         .update({
           xp: (profile.xp || 0) + points * 2,
           eco_points: (profile.eco_points || 0) + points,
           items_recycled: (profile.items_recycled || 0) + 1,
-          badges: [...badges],
         })
-        .eq("id", selectedUser.id);
+        .eq('id', selectedUser.id);
       if (updateErr) throw updateErr;
+
+      // Ledger row (best-effort: the award itself must not fail over this).
+      await supabase.from('eco_point_transactions').insert({
+        user_id: selectedUser.user_id,
+        amount: points,
+        type: 'recycle_base',
+        reason: `Staff check-in award at ${centre?.name || 'centre'} (+${points} pts)`,
+      });
 
       setDone(true);
     } catch (err) {

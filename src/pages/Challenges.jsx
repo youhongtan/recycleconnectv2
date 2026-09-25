@@ -51,15 +51,12 @@ export default function Challenges() {
       if (user) {
         const { data: logs } = await supabase
           .from("recycle_logs")
-          .select("id,client_submission_id,weight_g")
+          .select("weight_g")
           .eq("user_id", user.id)
-          .limit(2000);
-        const sums = {};
-        for (const row of logs || []) {
-          const key = row.client_submission_id || row.id;
-          sums[key] = (sums[key] || 0) + (Number(row.weight_g) || 0);
-        }
-        setBest(Math.round(Math.max(0, ...Object.values(sums))));
+          .limit(5000);
+        let total = 0;
+        for (const row of logs || []) total += Number(row.weight_g) || 0;
+        setBest(Math.round(total));
         const { data: prof } = await supabase
           .from("eco_profiles")
           .select("redeemed_rewards")

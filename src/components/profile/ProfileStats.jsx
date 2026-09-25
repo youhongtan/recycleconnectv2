@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Counter from "@/components/common/Counter";
+import { supabase } from "@/api/supabaseClient";
+import { MATERIALS, MATERIAL_KEY } from "@/lib/recycleData";
 import { useI18n } from "@/lib/i18n";
-import { Recycle, Cloud, Package } from "lucide-react";
+import { Recycle } from "lucide-react";
 
 export const levelFromXp = (xp) => Math.floor(xp / 500) + 1;
 
@@ -10,12 +12,26 @@ export default function ProfileStats({ profile }) {
   const level = levelFromXp(profile.xp || 0);
   const intoLevel = (profile.xp || 0) % 500;
   const pct = (intoLevel / 500) * 100;
+  const [kgByMaterial, setKgByMaterial] = useState({});
 
-  const cards = [
-    { icon: Package, label: t("psItems"), value: profile.items_recycled || 0 },
-    { icon: Recycle, label: t("psPlastic"), value: profile.plastic_saved_kg || 0, decimals: 1 },
-    { icon: Cloud, label: t("psCo2"), value: profile.co2_reduced_kg || 0, decimals: 1 },
-  ];
+  // Per-material lifetime totals from the ledger (1 decimal kg each).
+  useEffect(() => {
+    if (!profile?.user_id) return;
+    (async () => {
+      const { data } = await supabase
+        .from("recycle_logs")
+        .select("material,weight_g")
+        .eq("user_id", profile.user_id)
+        .limit(5000);
+      const sums = {};
+      for (const row of data || []) {
+        sums[row.material] = (sums[row.material] || 0) + (Number(row.weight_g) || 0);
+      }
+      const kg = {};
+      for (const m of MATERIALS) kg[m] = +((sums[m] || 0) / 1000).toFixed(1);
+      setKgByMaterial(kg);
+    })();
+  }, [profile?.user_id]);
 
   return (
     <div className="space-y-6">
@@ -42,13 +58,13 @@ export default function ProfileStats({ profile }) {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map((c) => (
-          <div key={c.label} className="glass orbital soft-shadow p-6">
-            <c.icon className="w-5 h-5 text-primary" aria-hidden="true" />
+        {MATERIALS.map((m) => (
+          <div key={m} className="glass orbital soft-shadow p-6">
+            <Recycle className="w-5 h-5 text-primary" aria-hidden="true" />
             <p className="mt-3 text-3xl font-bold tracking-tight">
-              <Counter to={c.value} decimals={c.decimals || 0} />
+              <Counter to={kgByMaterial[m] || 0} decimals={1} />
             </p>
-            <p className="text-sm text-muted-foreground">{c.label}</p>
+            <p className="text-sm text-muted-foreground">{t(MATERIAL_KEY[m] || m)} (kg)</p>
           </div>
         ))}
       </div>

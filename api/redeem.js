@@ -98,24 +98,21 @@ module.exports = async function handler(req, res) {
     return fail(409, 'Already redeemed.');
   }
 
-  // Tier trophies: single-submission qualification + first-come single stock.
+  // Tier trophies: lifetime-total qualification + first-come single stock.
   // Qualification is computed from the user's OWN logs (never trusted input).
   let isTierClaim = false;
   if (reward.tier_min_grams != null) {
     isTierClaim = true;
     const logsRes = await fetch(
-      `${url}/rest/v1/recycle_logs?user_id=eq.${userId}&select=id,client_submission_id,weight_g&limit=2000`,
+      `${url}/rest/v1/recycle_logs?user_id=eq.${userId}&select=weight_g&limit=5000`,
       { headers: H }
     );
     if (!logsRes.ok) return fail(500, 'Could not verify tier qualification.');
-    const sums = {};
-    for (const row of await logsRes.json()) {
-      const key = row.client_submission_id || row.id || Math.random();
-      sums[key] = (sums[key] || 0) + (Number(row.weight_g) || 0);
-    }
-    const best = Math.max(0, ...Object.values(sums));
-    if (best < reward.tier_min_grams) {
-      return fail(403, `Reach ${Number(reward.tier_min_grams).toLocaleString()}g in one submission to qualify for ${reward.name}. Your best so far: ${Math.round(best).toLocaleString()}g.`);
+    let lifetime = 0;
+    for (const row of await logsRes.json()) lifetime += Number(row.weight_g) || 0;
+    lifetime = Math.round(lifetime);
+    if (lifetime < reward.tier_min_grams) {
+      return fail(403, `Recycle ${Number(reward.tier_min_grams).toLocaleString()}g in total to qualify for ${reward.name}. Your total so far: ${lifetime.toLocaleString()}g.`);
     }
     if (reward.stock_left != null && reward.stock_left <= 0) {
       return fail(409, `${reward.name} is already claimed — a new round opens soon.`);

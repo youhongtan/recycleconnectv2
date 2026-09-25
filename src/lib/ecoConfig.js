@@ -33,28 +33,28 @@ export const WEIGHT_BONUS_TIERS = [
   [10000, 100],
 ];
 
-// Single-submission medal tiers (display + trophy qualification only —
+// Lifetime-total medal tiers (display + trophy qualification only —
 // NOT a challenge system: no dates, missions, XP or progress tracking).
-// Bronze 50kg, Silver 80kg, Gold 100kg.
+// Bronze 50kg, Silver 80kg, Gold 100kg of ALL recycling combined.
 export const MEDAL_TIERS = [
   { key: "bronze", minGrams: 50000 },
   { key: "silver", minGrams: 80000 },
   { key: "gold", minGrams: 100000 },
 ];
 
-/** Highest medal tier reached by a single submission of `maxGrams` (or null). */
-export function medalFor(maxGrams) {
+/** Highest medal tier reached with `totalGrams` recycled lifetime. */
+export function medalFor(totalGrams) {
   let reached = null;
   for (const tier of MEDAL_TIERS) {
-    if (maxGrams >= tier.minGrams) reached = tier;
+    if (totalGrams >= tier.minGrams) reached = tier;
   }
   return reached;
 }
 
-/** Next medal tier above `maxGrams` (or null when Gold is reached). */
-export function nextMedalFor(maxGrams) {
+/** Next medal tier above `totalGrams` (or null when Gold is reached). */
+export function nextMedalFor(totalGrams) {
   for (const tier of MEDAL_TIERS) {
-    if (maxGrams < tier.minGrams) return tier;
+    if (totalGrams < tier.minGrams) return tier;
   }
   return null;
 }

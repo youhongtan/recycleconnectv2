@@ -43,9 +43,9 @@ ON CONFLICT (name) DO UPDATE SET
 -- holder; an admin re-stocks (stock_left = 1) to open the next round.
 INSERT INTO rewards (id, name, description, eco_points_cost, category, available, reward_kind, tier_min_grams, stock_total, stock_left)
 VALUES
-  (gen_random_uuid(), 'Bronze Tier Reward', 'Recycling Eco Hamper: recycled stationery, tote bag and seed bombs. Reach 50kg in one submission to qualify.', 0, 'Trophy', TRUE, 'eco', 50000, 1, 1),
-  (gen_random_uuid(), 'Silver Tier Reward', 'City Scooter: a classic kick scooter for short green trips. Reach 80kg in one submission to qualify.', 0, 'Trophy', TRUE, 'eco', 80000, 1, 1),
-  (gen_random_uuid(), 'Gold Tier Reward', 'City Bicycle: a full-size city bike. Reach 100kg in one submission to qualify.', 0, 'Trophy', TRUE, 'eco', 100000, 1, 1)
+  (gen_random_uuid(), 'Bronze Tier Reward', 'Recycling Eco Hamper: recycled stationery, tote bag and seed bombs. Recycle 50kg in total to qualify.', 0, 'Trophy', TRUE, 'eco', 50000, 1, 1),
+  (gen_random_uuid(), 'Silver Tier Reward', 'City Scooter: a classic kick scooter for short green trips. Recycle 80kg in total to qualify.', 0, 'Trophy', TRUE, 'eco', 80000, 1, 1),
+  (gen_random_uuid(), 'Gold Tier Reward', 'City Bicycle: a full-size city bike. Recycle 100kg in total to qualify.', 0, 'Trophy', TRUE, 'eco', 100000, 1, 1)
 ON CONFLICT (name) DO UPDATE SET
   description = EXCLUDED.description,
   eco_points_cost = EXCLUDED.eco_points_cost,
