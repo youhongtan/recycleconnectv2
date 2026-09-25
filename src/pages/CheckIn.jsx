@@ -74,6 +74,7 @@ export default function CheckIn() {
   const submit = async () => {
     if (busyRef.current) return;
     busyRef.current = true;
+    console.log("submit key:", submitId);
     setFormError("");
     for (const l of lines) {
       const err = validateGrams(l.grams);
