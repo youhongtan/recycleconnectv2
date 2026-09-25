@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/api/supabaseClient";
 import { getLevel } from "@/lib/recycleData";
@@ -24,6 +24,10 @@ export default function CheckIn() {
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState("");
+  // Sync guard: React state updates are async, so a rapid double-tap can
+  // fire submit() twice with the same idempotency key before `submitting`
+  // flips. A ref blocks the second fire synchronously.
+  const busyRef = useRef(false);
 
   const handleScan = (text) => {
     setScanning(false);
@@ -68,16 +72,20 @@ export default function CheckIn() {
   const quote = useMemo(() => quoteSubmission(lines), [lines]);
 
   const submit = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setFormError("");
     for (const l of lines) {
       const err = validateGrams(l.grams);
       if (err) {
         setFormError(`${l.material}: ${err}`);
+        busyRef.current = false;
         return;
       }
     }
     if (lines.length === 0) {
       setFormError(t("ciNeedOne"));
+      busyRef.current = false;
       return;
     }
     setSubmitting(true);
@@ -121,6 +129,7 @@ export default function CheckIn() {
       setFormError(e.message);
     }
     setSubmitting(false);
+    busyRef.current = false;
   };
 
   if (loading) return <div className="max-w-2xl mx-auto px-6 py-20 flex items-center gap-2 text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> {t("loadingDots")}</div>;

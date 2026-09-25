@@ -216,6 +216,14 @@ module.exports = async function handler(req, res) {
   const profs = await profRes.json();
   const profile = profs[0];
   if (!profile) return fail('Profile not found.');
+  // Defensive: balances must never go negative. If a corrupt/legacy row is
+  // ever read with a negative balance, normalize the math to zero and log it
+  // instead of propagating impossible numbers to the client.
+  if ((profile.eco_points || 0) < 0 || (profile.xp || 0) < 0) {
+    console.error(`NEGATIVE BALANCE on profile=${profile.id}: eco=${profile.eco_points} xp=${profile.xp} — normalizing to 0.`);
+    profile.eco_points = 0;
+    profile.xp = 0;
+  }
   // Badges system removed — profile updates carry points and counts only.
   const upd = await fetch(`${url}/rest/v1/eco_profiles?id=eq.${profile.id}`, {
     method: 'PATCH',
