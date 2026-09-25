@@ -98,7 +98,7 @@ export default function CheckIn() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Submission failed.");
-      console.log("recycle result:", JSON.stringify(data.debug || null));
+      console.log("recycle result:", JSON.stringify({ awarded: data.awarded, base: data.baseCredited, bonus: data.bonus, grams: data.totalGrams, balance: data.newBalance, persisted: data.persisted, duplicate: data.duplicate, debug: data.debug || null }));
       const { data: p } = await supabase
         .from('eco_profiles')
         .select('*')
