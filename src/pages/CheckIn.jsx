@@ -9,6 +9,12 @@ import { useI18n } from "@/lib/i18n";
 import { MapPin, Clock, Phone, CheckCircle2, Loader2, Sparkles, ScanLine, QrCode } from "lucide-react";
 import QrScanner from "@/components/checkin/QrScanner";
 
+// Module-level: keys that already succeeded in THIS tab session (survives
+// re-renders AND bfcache restores). A tap reusing a completed key shows the
+// previous result instead of firing a confusing duplicate replay.
+const completedKeys = new Set();
+let lastResultCache = null;
+
 // Idempotency keys must be unique per logical submit. crypto.randomUUID is
 // preferred; the timestamp+random fallback keeps rotation working even where
 // the Crypto API is restricted, so a key can never get stuck and be reused.
@@ -105,6 +111,14 @@ export default function CheckIn() {
     if (busyRef.current) return;
     busyRef.current = true;
     console.log("submit key:", submitId);
+    // Repeat tap with an already-completed key (e.g. after back-navigation):
+    // show the previous result instead of firing a confusing replay.
+    if (completedKeys.has(submitId) && lastResultCache) {
+      setResult(lastResultCache);
+      setSubmitting(false);
+      busyRef.current = false;
+      return;
+    }
     setFormError("");
     for (const l of lines) {
       const err = validateGrams(l.grams);
@@ -161,14 +175,17 @@ export default function CheckIn() {
       if (p) setProfile(p);
       // Display the SERVER's authoritative new balance, not a refetch that
       // can return a stale row while replicas/RLS settle.
-      setResult({
+      const shown = {
         awarded: data.awarded,
         base: data.baseCredited,
         bonus: data.bonus,
         grams: data.totalGrams,
         level: p ? getLevel(p.xp) : getLevel((profile?.xp || 0) + data.awarded),
         balance: typeof data.newBalance === "number" ? data.newBalance : (p ? p.eco_points : (profile?.eco_points || 0) + data.awarded),
-      });
+      };
+      setResult(shown);
+      completedKeys.add(submitId);
+      lastResultCache = shown;
       setSubmitId(newSubmitKey());
       setGrams({});
     } catch (e) {
