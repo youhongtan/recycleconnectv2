@@ -235,7 +235,6 @@ module.exports = async function handler(req, res) {
           if (cRes.ok) conflictRows = (await cRes.json()).length;
         } catch { /* keep -1 = unknown */ }
         console.error(`LOST-RACE key=${clientSubmissionId} status=${ins.status} conflictRows=${conflictRows} body=${t.slice(0, 300)}`);
-        console.error(`LOST-RACE key=${clientSubmissionId} status=${ins.status} body=${t.slice(0, 300)}`);
         const re = await fetch(
           `${url}/rest/v1/recycle_logs?client_submission_id=eq.${encodeURIComponent(clientSubmissionId)}&select=points_base,points_bonus`,
           { headers: H }
