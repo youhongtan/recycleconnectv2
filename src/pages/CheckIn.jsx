@@ -167,21 +167,34 @@ export default function CheckIn() {
         return;
       }
       sessionStorage.removeItem("rc-rev-reload");
-      const { data: p } = await supabase
-        .from('eco_profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      // Re-read until the fresh balance is visible (up to ~4s): the write
+      // can lag the response under load, and we display the READ value —
+      // never arithmetic on a stale snapshot.
+      const before = profile?.eco_points || 0;
+      const expectedMin = before + (data.awarded || 0);
+      let p = null;
+      for (let i = 0; i < 4; i++) {
+        const { data: fresh } = await supabase
+          .from('eco_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (fresh && (fresh.eco_points >= expectedMin || i === 3)) {
+          p = fresh;
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
       if (p) setProfile(p);
-      // Display the SERVER's authoritative new balance, not a refetch that
-      // can return a stale row while replicas/RLS settle.
+      // Display the FRESHLY READ balance. Fall back to the server figure only
+      // if reads keep failing — never stale-state arithmetic.
       const shown = {
         awarded: data.awarded,
         base: data.baseCredited,
         bonus: data.bonus,
         grams: data.totalGrams,
-        level: p ? getLevel(p.xp) : getLevel((profile?.xp || 0) + data.awarded),
-        balance: typeof data.newBalance === "number" ? data.newBalance : (p ? p.eco_points : (profile?.eco_points || 0) + data.awarded),
+        level: p ? getLevel(p.xp) : getLevel(before + (data.awarded || 0)),
+        balance: p ? p.eco_points : (typeof data.newBalance === "number" ? data.newBalance : before + (data.awarded || 0)),
       };
       setResult(shown);
       completedKeys.add(submitId);
