@@ -43,6 +43,22 @@ export default function CheckIn() {
   // flips. A ref blocks the second fire synchronously.
   const busyRef = useRef(false);
 
+  // bfcache guard: navigating View Profile → BACK restores this page WITH its
+  // old JS state, including an already-used idempotency key. Every submit
+  // after that would replay as a "duplicate". Regenerate on restore so each
+  // visit starts with a fresh key.
+  useEffect(() => {
+    const onShow = (e) => {
+      if (e.persisted) {
+        setSubmitId(newSubmitKey());
+        busyRef.current = false;
+        setSubmitting(false);
+      }
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
+
   const handleScan = (text) => {
     setScanning(false);
     setScanError("");
