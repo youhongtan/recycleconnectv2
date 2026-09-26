@@ -21,7 +21,7 @@ const newSubmitKey = () => {
 
 // Must match API_REV in api/recycle.js — bump together. Mismatches trigger
 // a one-time auto-reload (see submit()).
-const CLIENT_API_REV = "r4";
+const CLIENT_API_REV = "r5";
 
 export default function CheckIn() {
   const { t } = useI18n();

@@ -50,7 +50,7 @@ function readBody(req) {
 // Bump API_REV on every change to this file. The frontend carries the same
 // rev and forces a refresh on mismatch, so a stale cached page can never
 // talk to a stale function (or vice versa) without the user knowing.
-const API_REV = "r4";
+const API_REV = "r5";
 
 function supaHeaders(key, token) {
   const h = { apikey: key, 'Content-Type': 'application/json' };
@@ -125,6 +125,28 @@ module.exports = async function handler(req, res) {
   // --- 4. Idempotency: already-processed submission returns original result.
   // EVERY success path (fresh, duplicate, or lost-race) returns the live
   // balance + debug, so the client can never display a stale number.
+  // The ledger is the source of truth: replays SYNC the profile balance to
+  // the transaction sum, so an award orphaned by a killed/timed-out first
+  // attempt self-heals instead of sticking forever.
+  async function syncBalanceFromLedger() {
+    try {
+      const sRes = await fetch(
+        `${url}/rest/v1/eco_point_transactions?user_id=eq.${userId}&select=amount&limit=5000`,
+        { headers: H }
+      );
+      if (!sRes.ok) return null;
+      const rows = await sRes.json();
+      const sum = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+      await fetch(`${url}/rest/v1/eco_profiles?user_id=eq.${userId}`, {
+        method: 'PATCH',
+        headers: { ...H, Prefer: 'return=minimal' },
+        body: JSON.stringify({ eco_points: sum }),
+      });
+      return sum;
+    } catch {
+      return null;
+    }
+  }
   async function liveBalanceOf() {
     try {
       const bRes = await fetch(
@@ -146,8 +168,10 @@ module.exports = async function handler(req, res) {
     if (dup.length > 0) {
       const base = dup.reduce((s, r) => s + (r.points_base || 0), 0);
       const bon = dup.reduce((s, r) => s + (r.points_bonus || 0), 0);
-      const liveBalance = await liveBalanceOf();
-      console.log(`DUPLICATE submission ${clientSubmissionId}: replaying award, liveBalance=${liveBalance}`);
+      // Self-heal: sync the cached balance to the ledger truth, so an award
+      // orphaned by an earlier killed/timed-out attempt lands now.
+      const liveBalance = await syncBalanceFromLedger();
+      console.log(`DUPLICATE submission ${clientSubmissionId}: synced award, liveBalance=${liveBalance}`);
       return send(res, 200, {
         awarded: base + bon, baseCredited: base, bonus: bon,
         totalGrams, duplicate: true,
