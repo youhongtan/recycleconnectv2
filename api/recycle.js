@@ -138,11 +138,18 @@ module.exports = async function handler(req, res) {
       if (!sRes.ok) return null;
       const rows = await sRes.json();
       const sum = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
-      await fetch(`${url}/rest/v1/eco_profiles?user_id=eq.${userId}`, {
+      // Check the PATCH result: a silent failure here used to report success
+      // with a stale balance. Never claim persisted without proof.
+      const syncRes = await fetch(`${url}/rest/v1/eco_profiles?user_id=eq.${userId}`, {
         method: 'PATCH',
         headers: { ...H, Prefer: 'return=minimal' },
         body: JSON.stringify({ eco_points: sum }),
       });
+      if (!syncRes.ok) {
+        const t = await syncRes.text();
+        console.error(`SYNC PATCH failed: HTTP ${syncRes.status} ${t.slice(0, 200)}`);
+        return null;
+      }
       return sum;
     } catch {
       return null;
