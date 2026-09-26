@@ -73,6 +73,11 @@ module.exports = async function handler(req, res) {
   const { items, clientSubmissionId, centreId, centreName, accessToken } = body || {};
   console.log(`RECYCLE-START key=${clientSubmissionId} lines=${Array.isArray(items) ? items.length : '?'}`);
 
+  // Whole-flow guard: ANY unexpected throw (e.g. an upstream HTML error page
+  // breaking .json()) becomes a JSON 500 with a logged reason — never a
+  // platform crash page the client can't parse.
+  try {
+
   // --- 1. Auth: verify JWT, resolve user (never trust a client-sent user id)
   if (!accessToken) return send(res, 401, { error: 'Sign in required.' });
   const meRes = await fetch(`${url}/auth/v1/user`, { headers: supaHeaders(anon, accessToken) });
@@ -352,4 +357,8 @@ module.exports = async function handler(req, res) {
     },
     duplicate: false,
   });
+  } catch (e) {
+    console.error('RECYCLE FATAL:', e.message);
+    return send(res, 500, { error: 'Something went wrong saving. Please try again.' });
+  }
 };
