@@ -9,6 +9,16 @@ import { useI18n } from "@/lib/i18n";
 import { MapPin, Clock, Phone, CheckCircle2, Loader2, Sparkles, ScanLine, QrCode } from "lucide-react";
 import QrScanner from "@/components/checkin/QrScanner";
 
+// Idempotency keys must be unique per logical submit. crypto.randomUUID is
+// preferred; the timestamp+random fallback keeps rotation working even where
+// the Crypto API is restricted, so a key can never get stuck and be reused.
+const newSubmitKey = () => {
+  try {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  } catch { /* fall through to fallback */ }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}-${Math.random().toString(36).slice(2, 12)}`;
+};
+
 export default function CheckIn() {
   const { t } = useI18n();
   const [params] = useSearchParams();
@@ -18,7 +28,7 @@ export default function CheckIn() {
   const [user, setUser] = useState(null);
   const [grams, setGrams] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [submitId, setSubmitId] = useState(() => crypto.randomUUID());
+  const [submitId, setSubmitId] = useState(() => newSubmitKey());
   const [result, setResult] = useState(null);
   const [formError, setFormError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -124,7 +134,7 @@ export default function CheckIn() {
         level: p ? getLevel(p.xp) : getLevel((profile?.xp || 0) + data.awarded),
         balance: typeof data.newBalance === "number" ? data.newBalance : (p ? p.eco_points : (profile?.eco_points || 0) + data.awarded),
       });
-      setSubmitId(crypto.randomUUID());
+      setSubmitId(newSubmitKey());
       setGrams({});
     } catch (e) {
       setFormError(e.message);
