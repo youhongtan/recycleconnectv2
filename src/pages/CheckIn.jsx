@@ -19,6 +19,10 @@ const newSubmitKey = () => {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}-${Math.random().toString(36).slice(2, 12)}`;
 };
 
+// Must match API_REV in api/recycle.js — bump together. Mismatches trigger
+// a one-time auto-reload (see submit()).
+const CLIENT_API_REV = "r4";
+
 export default function CheckIn() {
   const { t } = useI18n();
   const [params] = useSearchParams();
@@ -117,7 +121,22 @@ export default function CheckIn() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Submission failed.");
-      console.log("recycle result:", JSON.stringify({ awarded: data.awarded, base: data.baseCredited, bonus: data.bonus, grams: data.totalGrams, balance: data.newBalance, persisted: data.persisted, duplicate: data.duplicate, debug: data.debug || null }));
+      console.log("recycle result:", JSON.stringify({ awarded: data.awarded, base: data.baseCredited, bonus: data.bonus, grams: data.totalGrams, balance: data.newBalance, persisted: data.persisted, duplicate: data.duplicate, apiRev: data.apiRev, debug: data.debug || null }));
+      // Stale-deploy guard: if the API answers without the current rev stamp,
+      // page and function are mismatched — reload once instead of showing
+      // numbers from two different builds.
+      if (!data.apiRev || data.apiRev !== CLIENT_API_REV) {
+        if (!sessionStorage.getItem("rc-rev-reload")) {
+          sessionStorage.setItem("rc-rev-reload", "1");
+          window.location.reload();
+          return;
+        }
+        setFormError("App updated in the background — please hard-refresh (Ctrl+Shift+R) and submit again.");
+        setSubmitting(false);
+        busyRef.current = false;
+        return;
+      }
+      sessionStorage.removeItem("rc-rev-reload");
       const { data: p } = await supabase
         .from('eco_profiles')
         .select('*')

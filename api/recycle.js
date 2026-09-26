@@ -47,6 +47,11 @@ function readBody(req) {
   });
 }
 
+// Bump API_REV on every change to this file. The frontend carries the same
+// rev and forces a refresh on mismatch, so a stale cached page can never
+// talk to a stale function (or vice versa) without the user knowing.
+const API_REV = "r4";
+
 function supaHeaders(key, token) {
   const h = { apikey: key, 'Content-Type': 'application/json' };
   if (token) h.Authorization = `Bearer ${token}`;
@@ -118,8 +123,20 @@ module.exports = async function handler(req, res) {
   const fail = (msg) => send(res, 500, { error: msg });
 
   // --- 4. Idempotency: already-processed submission returns original result.
-  // Duplicate replays ALSO return the live balance + debug, so the client
-  // can never display a stale number on a replayed success.
+  // EVERY success path (fresh, duplicate, or lost-race) returns the live
+  // balance + debug, so the client can never display a stale number.
+  async function liveBalanceOf() {
+    try {
+      const bRes = await fetch(
+        `${url}/rest/v1/eco_profiles?user_id=eq.${userId}&select=eco_points`,
+        { headers: H }
+      );
+      const bRows = await bRes.json();
+      return bRows[0] ? bRows[0].eco_points : null;
+    } catch {
+      return null;
+    }
+  }
   const dupRes = await fetch(
     `${url}/rest/v1/recycle_logs?client_submission_id=eq.${encodeURIComponent(clientSubmissionId)}&select=id,points_base,points_bonus`,
     { headers: H }
@@ -129,21 +146,14 @@ module.exports = async function handler(req, res) {
     if (dup.length > 0) {
       const base = dup.reduce((s, r) => s + (r.points_base || 0), 0);
       const bon = dup.reduce((s, r) => s + (r.points_bonus || 0), 0);
-      let liveBalance = null;
-      try {
-        const bRes = await fetch(
-          `${url}/rest/v1/eco_profiles?user_id=eq.${userId}&select=eco_points`,
-          { headers: H }
-        );
-        const bRows = await bRes.json();
-        if (bRows[0]) liveBalance = bRows[0].eco_points;
-      } catch { /* display falls back */ }
+      const liveBalance = await liveBalanceOf();
       console.log(`DUPLICATE submission ${clientSubmissionId}: replaying award, liveBalance=${liveBalance}`);
       return send(res, 200, {
         awarded: base + bon, baseCredited: base, bonus: bon,
         totalGrams, duplicate: true,
         newBalance: liveBalance,
         persisted: liveBalance != null,
+        apiRev: API_REV,
         debug: { duplicate: true, key: clientSubmissionId, liveBalance },
       });
     }
@@ -173,9 +183,26 @@ module.exports = async function handler(req, res) {
     });
     if (!ins.ok) {
       const t = await ins.text();
-      // Lost race with a retry carrying the same id → treat as duplicate.
+      // Lost race with a retry carrying the same id: replay from stored rows
+      // (with live balance + debug, exactly like the duplicate path above).
       if (ins.status === 409 || /duplicate|unique/i.test(t)) {
-        return send(res, 200, { awarded: totalCredited, baseCredited, bonus, totalGrams, duplicate: true });
+        const re = await fetch(
+          `${url}/rest/v1/recycle_logs?client_submission_id=eq.${encodeURIComponent(clientSubmissionId)}&select=points_base,points_bonus`,
+          { headers: H }
+        );
+        const reRows = re.ok ? await re.json() : [];
+        const reBase = reRows.reduce((s, r) => s + (r.points_base || 0), 0);
+        const reBon = reRows.reduce((s, r) => s + (r.points_bonus || 0), 0);
+        const liveBalance = await liveBalanceOf();
+        console.log(`LOST-RACE on ${clientSubmissionId}: replaying, liveBalance=${liveBalance}`);
+        return send(res, 200, {
+          awarded: reBase + reBon, baseCredited: reBase, bonus: reBon,
+          totalGrams, duplicate: true,
+          newBalance: liveBalance,
+          persisted: liveBalance != null,
+          debug: { duplicate: true, lostRace: true, key: clientSubmissionId, liveBalance },
+          apiRev: API_REV,
+        });
       }
       return fail(`Could not save recycling log: ${t.slice(0, 200)}`);
     }
@@ -271,6 +298,7 @@ module.exports = async function handler(req, res) {
     perLine: perLine.map((l) => ({ material: l.material, grams: l.grams, baseCredited: l.baseCredited })),
     newBalance: verifiedBalance ?? newBalance,
     persisted,
+    apiRev: API_REV,
     debug: {
       profileId: profile.id,
       before: profile.eco_points,
