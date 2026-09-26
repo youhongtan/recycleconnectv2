@@ -50,7 +50,7 @@ function readBody(req) {
 // Bump API_REV on every change to this file. The frontend carries the same
 // rev and forces a refresh on mismatch, so a stale cached page can never
 // talk to a stale function (or vice versa) without the user knowing.
-const API_REV = "r5";
+const API_REV = "r6";
 
 function supaHeaders(key, token) {
   const h = { apikey: key, 'Content-Type': 'application/json' };
@@ -218,6 +218,18 @@ module.exports = async function handler(req, res) {
       // Lost race with a retry carrying the same id: replay from stored rows
       // (with live balance + debug, exactly like the duplicate path above).
       if (ins.status === 409 || /duplicate|unique/i.test(t)) {
+        // Definitive check: do rows with this key ACTUALLY exist right now?
+        // If yes → genuine race/replay. If no → the unique index itself is
+        // misfiring (wrong definition) and must be rebuilt, not worked around.
+        let conflictRows = -1;
+        try {
+          const cRes = await fetch(
+            `${url}/rest/v1/recycle_logs?client_submission_id=eq.${encodeURIComponent(clientSubmissionId)}&select=id`,
+            { headers: H }
+          );
+          if (cRes.ok) conflictRows = (await cRes.json()).length;
+        } catch { /* keep -1 = unknown */ }
+        console.error(`LOST-RACE key=${clientSubmissionId} status=${ins.status} conflictRows=${conflictRows} body=${t.slice(0, 300)}`);
         console.error(`LOST-RACE key=${clientSubmissionId} status=${ins.status} body=${t.slice(0, 300)}`);
         const re = await fetch(
           `${url}/rest/v1/recycle_logs?client_submission_id=eq.${encodeURIComponent(clientSubmissionId)}&select=points_base,points_bonus`,
@@ -233,7 +245,7 @@ module.exports = async function handler(req, res) {
           totalGrams, duplicate: true,
           newBalance: liveBalance,
           persisted: liveBalance != null,
-          debug: { duplicate: true, lostRace: true, key: clientSubmissionId, liveBalance },
+          debug: { duplicate: true, lostRace: true, key: clientSubmissionId, liveBalance, conflictRows },
           apiRev: API_REV,
         });
       }
