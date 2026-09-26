@@ -71,6 +71,7 @@ module.exports = async function handler(req, res) {
   catch { return send(res, 400, { error: 'Invalid JSON body' }); }
 
   const { items, clientSubmissionId, centreId, centreName, accessToken } = body || {};
+  console.log(`RECYCLE-START key=${clientSubmissionId} lines=${Array.isArray(items) ? items.length : '?'}`);
 
   // --- 1. Auth: verify JWT, resolve user (never trust a client-sent user id)
   if (!accessToken) return send(res, 401, { error: 'Sign in required.' });
@@ -210,6 +211,7 @@ module.exports = async function handler(req, res) {
       // Lost race with a retry carrying the same id: replay from stored rows
       // (with live balance + debug, exactly like the duplicate path above).
       if (ins.status === 409 || /duplicate|unique/i.test(t)) {
+        console.error(`LOST-RACE key=${clientSubmissionId} status=${ins.status} body=${t.slice(0, 300)}`);
         const re = await fetch(
           `${url}/rest/v1/recycle_logs?client_submission_id=eq.${encodeURIComponent(clientSubmissionId)}&select=points_base,points_bonus`,
           { headers: H }
