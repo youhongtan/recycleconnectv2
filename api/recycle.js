@@ -302,12 +302,13 @@ module.exports = async function handler(req, res) {
     profile.xp = 0;
   }
   // Badges system removed — profile updates carry points and counts only.
+  const newBalance = (profile.eco_points || 0) + totalCredited;
   const upd = await fetch(`${url}/rest/v1/eco_profiles?id=eq.${profile.id}`, {
     method: 'PATCH',
     headers: { ...H, Prefer: 'return=representation' },
     body: JSON.stringify({
       xp: (profile.xp || 0) + totalCredited,
-      eco_points: (profile.eco_points || 0) + totalCredited,
+      eco_points: newBalance,
       items_recycled: (profile.items_recycled || 0) + perLine.length,
       plastic_saved_kg: (profile.plastic_saved_kg || 0) + totalGrams / 1000,
     }),
