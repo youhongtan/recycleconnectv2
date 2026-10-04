@@ -13,7 +13,6 @@ export default function ProfileStats({ profile }) {
   const intoLevel = (profile.xp || 0) % 500;
   const pct = (intoLevel / 500) * 100;
   const [gByMaterial, setGByMaterial] = useState({});
-  const [diag, setDiag] = useState("");
 
   // Per-material lifetime totals in GRAMS, straight from the ledger weights.
   useEffect(() => {
@@ -26,7 +25,6 @@ export default function ProfileStats({ profile }) {
         .limit(5000);
       console.log("stats query:", JSON.stringify({ uid: profile.user_id, rows: data ? data.length : -1, err: error ? error.message : null }));
       if (error) {
-        setDiag(`Stats error: ${error.message}`);
         return;
       }
       const sums = {};
@@ -36,7 +34,6 @@ export default function ProfileStats({ profile }) {
       const g = {};
       for (const m of MATERIALS) g[m] = Math.round(sums[m] || 0);
       setGByMaterial(g);
-      setDiag(`Ledger rows seen: ${data ? data.length : 0}`);
     })();
   }, [profile?.user_id]);
 
@@ -75,7 +72,6 @@ export default function ProfileStats({ profile }) {
           </div>
         ))}
       </div>
-      {diag && <p className="text-xs text-muted-foreground mt-2">{diag}</p>}
     </div>
   );
 }
