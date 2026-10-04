@@ -12,9 +12,9 @@ export default function ProfileStats({ profile }) {
   const level = levelFromXp(profile.xp || 0);
   const intoLevel = (profile.xp || 0) % 500;
   const pct = (intoLevel / 500) * 100;
-  const [kgByMaterial, setKgByMaterial] = useState({});
+  const [gByMaterial, setGByMaterial] = useState({});
 
-  // Per-material lifetime totals from the ledger (1 decimal kg each).
+  // Per-material lifetime totals in GRAMS, straight from the ledger weights.
   useEffect(() => {
     if (!profile?.user_id) return;
     (async () => {
@@ -27,9 +27,9 @@ export default function ProfileStats({ profile }) {
       for (const row of data || []) {
         sums[row.material] = (sums[row.material] || 0) + (Number(row.weight_g) || 0);
       }
-      const kg = {};
-      for (const m of MATERIALS) kg[m] = +((sums[m] || 0) / 1000).toFixed(1);
-      setKgByMaterial(kg);
+      const g = {};
+      for (const m of MATERIALS) g[m] = Math.round(sums[m] || 0);
+      setGByMaterial(g);
     })();
   }, [profile?.user_id]);
 
@@ -62,9 +62,9 @@ export default function ProfileStats({ profile }) {
           <div key={m} className="glass orbital soft-shadow p-6">
             <Recycle className="w-5 h-5 text-primary" aria-hidden="true" />
             <p className="mt-3 text-3xl font-bold tracking-tight">
-              <Counter to={kgByMaterial[m] || 0} decimals={1} />
+              <Counter to={gByMaterial[m] || 0} decimals={0} />
             </p>
-            <p className="text-sm text-muted-foreground">{t(MATERIAL_KEY[m] || m)} (kg)</p>
+            <p className="text-sm text-muted-foreground">{t(MATERIAL_KEY[m] || m)} (g)</p>
           </div>
         ))}
       </div>
