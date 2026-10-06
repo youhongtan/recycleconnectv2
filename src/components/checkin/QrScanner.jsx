@@ -12,8 +12,9 @@ export default function QrScanner({ onResult, onClose }) {
   const rafRef = useRef(null);
   const streamRef = useRef(null);
   const doneRef = useRef(false);
-  const [denied, setDenied] = useState(false);
+  const [errKind, setErrKind] = useState(null); // null | denied | busy | missing | failed
   const [starting, setStarting] = useState(true);
+  const [retryN, setRetryN] = useState(0);
 
   const stop = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -33,11 +34,18 @@ export default function QrScanner({ onResult, onClose }) {
   useEffect(() => {
     let alive = true;
     (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-          audio: false,
-        });
+      // Not every failure means "blocked": name it so the message can be true.
+      const fail = (e) => {
+        console.log("qr camera:", JSON.stringify({ name: e?.name || null, msg: e?.message || null }));
+        if (!alive) return;
+        const n = e?.name || "";
+        if (n === "NotAllowedError" || n === "SecurityError") setErrKind("denied");
+        else if (n === "NotReadableError" || n === "AbortError") setErrKind("busy");
+        else if (n === "NotFoundError" || n === "OverconstrainedError") setErrKind("missing");
+        else setErrKind("failed");
+        setStarting(false);
+      };
+      const attach = async (stream) => {
         if (!alive) {
           stream.getTracks().forEach((tr) => tr.stop());
           return;
@@ -45,7 +53,13 @@ export default function QrScanner({ onResult, onClose }) {
         streamRef.current = stream;
         const video = videoRef.current;
         video.srcObject = stream;
-        await video.play();
+        try {
+          await video.play();
+        } catch (e) {
+          fail(e);
+          return;
+        }
+        if (!alive) return;
         setStarting(false);
         const canvas = canvasRef.current;
         const ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -65,11 +79,28 @@ export default function QrScanner({ onResult, onClose }) {
           rafRef.current = requestAnimationFrame(tick);
         };
         rafRef.current = requestAnimationFrame(tick);
-      } catch {
-        if (alive) {
-          setDenied(true);
-          setStarting(false);
+      };
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          fail({ name: "NotFoundError" });
+          return;
         }
+        try {
+          // Prefer the rear camera, but accept ANY camera (laptops only have one).
+          attach(await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: false,
+          }));
+        } catch (e) {
+          if (!alive) return;
+          if (e?.name === "OverconstrainedError") {
+            attach(await navigator.mediaDevices.getUserMedia({ video: true, audio: false }));
+          } else {
+            fail(e);
+          }
+        }
+      } catch (e) {
+        fail(e);
       }
     })();
     return () => {
@@ -77,7 +108,7 @@ export default function QrScanner({ onResult, onClose }) {
       stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [retryN]);
 
   const onFile = async (e) => {
     const file = e.target.files?.[0];
@@ -116,18 +147,39 @@ export default function QrScanner({ onResult, onClose }) {
             <X className="w-4 h-4" />
           </button>
         </div>
-        {denied ? (
-          <p className="text-sm text-destructive">{t("ciScanDenied")}</p>
+        {errKind ? (
+          <p className="text-sm text-destructive">
+            {t(
+              errKind === "denied" ? "ciScanDenied"
+              : errKind === "busy" ? "ciScanBusy"
+              : errKind === "missing" ? "ciScanMissing"
+              : "ciScanFail"
+            )}
+          </p>
         ) : (
           <p className="text-sm text-muted-foreground">{t("ciScanHint")}</p>
         )}
         <div className="mt-4 rounded-2xl overflow-hidden bg-black aspect-square grid place-items-center">
-          {starting && !denied ? (
+          {starting && !errKind ? (
             <Loader2 className="w-8 h-8 animate-spin text-white" />
           ) : (
             <video ref={videoRef} playsInline muted className="w-full h-full object-cover" />
           )}
         </div>
+        {errKind && errKind !== "denied" && (
+          <button
+            type="button"
+            onClick={() => {
+              stop();
+              setErrKind(null);
+              setStarting(true);
+              setRetryN((n) => n + 1);
+            }}
+            className="mt-4 w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition"
+          >
+            {t("ciScanRetry")}
+          </button>
+        )}
         <canvas ref={canvasRef} className="hidden" />
         <label className="mt-4 flex items-center justify-center gap-2 h-12 rounded-full border border-border text-sm font-semibold cursor-pointer hover:bg-primary/10 transition">
           <Upload className="w-4 h-4" /> {t("ciScanUpload")}
