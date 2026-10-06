@@ -33,9 +33,11 @@ export default function QrScanner({ onResult, onClose }) {
 
   useEffect(() => {
     let alive = true;
+    let timer = null;
     (async () => {
       // Not every failure means "blocked": name it so the message can be true.
       const fail = (e) => {
+        clearTimeout(timer);
         console.log("qr camera:", JSON.stringify({ name: e?.name || null, msg: e?.message || null }));
         if (!alive) return;
         const n = e?.name || "";
@@ -46,6 +48,7 @@ export default function QrScanner({ onResult, onClose }) {
         setStarting(false);
       };
       const attach = async (stream) => {
+        clearTimeout(timer);
         if (!alive) {
           stream.getTracks().forEach((tr) => tr.stop());
           return;
@@ -80,6 +83,11 @@ export default function QrScanner({ onResult, onClose }) {
         };
         rafRef.current = requestAnimationFrame(tick);
       };
+      // Some setups (Brave Shields, a camera held by Zoom, etc.) leave the
+      // request hanging forever — stop spinning and say so after 12s.
+      timer = setTimeout(() => {
+        fail({ name: "TimeoutError", message: "Timed out waiting for camera" });
+      }, 12000);
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
           fail({ name: "NotFoundError" });
@@ -105,6 +113,7 @@ export default function QrScanner({ onResult, onClose }) {
     })();
     return () => {
       alive = false;
+      clearTimeout(timer);
       stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
