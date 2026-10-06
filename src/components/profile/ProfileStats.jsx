@@ -15,26 +15,46 @@ export default function ProfileStats({ profile }) {
   const [gByMaterial, setGByMaterial] = useState({});
 
   // Per-material lifetime totals in GRAMS, straight from the ledger weights.
+  // Waits for the auth session first: on some loads this query fired before
+  // the login token was restored, RLS then returned zero rows, and the cards
+  // stuck at 0. Transient failures are retried so a cold start can't stick.
   useEffect(() => {
     if (!profile?.user_id) return;
+    let cancelled = false;
+    const load = async () => {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const { data, error } = await supabase
+          .from("recycle_logs")
+          .select("material,weight_g")
+          .eq("user_id", profile.user_id)
+          .limit(5000);
+        console.log("stats query:", JSON.stringify({ attempt, uid: profile.user_id, rows: data ? data.length : -1, err: error ? error.message : null }));
+        if (cancelled) return;
+        if (!error && data && data.length > 0) {
+          const sums = {};
+          for (const row of data) {
+            sums[row.material] = (sums[row.material] || 0) + (Number(row.weight_g) || 0);
+          }
+          const g = {};
+          for (const m of MATERIALS) g[m] = Math.round(sums[m] || 0);
+          setGByMaterial(g);
+          return;
+        }
+        if (attempt < 3) await new Promise((r) => setTimeout(r, 1500 * attempt));
+      }
+    };
     (async () => {
-      const { data, error } = await supabase
-        .from("recycle_logs")
-        .select("material,weight_g")
-        .eq("user_id", profile.user_id)
-        .limit(5000);
-      console.log("stats query:", JSON.stringify({ uid: profile.user_id, rows: data ? data.length : -1, err: error ? error.message : null }));
-      if (error) {
-        return;
-      }
-      const sums = {};
-      for (const row of data || []) {
-        sums[row.material] = (sums[row.material] || 0) + (Number(row.weight_g) || 0);
-      }
-      const g = {};
-      for (const m of MATERIALS) g[m] = Math.round(sums[m] || 0);
-      setGByMaterial(g);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (session) { load(); return; }
+      let started = false;
+      const start = () => { if (!started && !cancelled) { started = true; load(); } };
+      const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+        if (sess) { try { sub.subscription.unsubscribe(); } catch (e) { void e; } start(); }
+      });
+      setTimeout(() => { try { sub.subscription.unsubscribe(); } catch (e) { void e; } start(); }, 4000);
     })();
+    return () => { cancelled = true; };
   }, [profile?.user_id]);
 
   return (
